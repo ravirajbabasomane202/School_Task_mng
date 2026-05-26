@@ -23,9 +23,7 @@ def create_app(config_name=None):
     jwt.init_app(app)
     bcrypt.init_app(app)
     cors.init_app(app, resources={r"/api/*": {"origins": app.config['FRONTEND_URL'], "supports_credentials": True}})
-    async_mode = os.environ.get('SOCKETIO_ASYNC_MODE')
-    if not async_mode:
-        async_mode = 'threading' if os.name == 'nt' else 'eventlet'
+    async_mode = os.environ.get('SOCKETIO_ASYNC_MODE', 'threading')
 
     socketio_options = {
         'cors_allowed_origins': app.config['FRONTEND_URL'],
