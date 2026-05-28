@@ -6,6 +6,7 @@ import { addNotification } from '../store/notificationSlice';
 import { useAppDispatch, useAppSelector } from '../store/hooks';
 import type { Announcement, Notification } from '../types/notification.types';
 import type { Task } from '../types/task.types';
+import { getBackendBaseUrl } from '../utils/apiBase';
 
 interface SocketTaskPayload { task?: Task; }
 
@@ -49,10 +50,7 @@ export const useSocket = () => {
   useEffect(() => {
     if (!token) return undefined;
 
-    const socketBaseUrl = (import.meta.env.VITE_API_URL ?? 'http://localhost:5000/api').replace(
-      /\/api\/?$/,
-      ''
-    );
+    const socketBaseUrl = getBackendBaseUrl();
     const socket = io(socketBaseUrl, { auth: { token } });
 
     socket.on('notification:new', (notification: Notification) => {

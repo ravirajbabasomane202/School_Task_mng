@@ -12,6 +12,7 @@ import { useSocket } from '../../hooks/useSocket';
 import * as taskService from '../../services/taskService';
 import { useAppSelector } from '../../store/hooks';
 import type { Task, TaskHistory, TaskStatus } from '../../types/task.types';
+import { getBackendBaseUrl } from '../../utils/apiBase';
 
 const statusVariant: Record<TaskStatus, 'blue' | 'amber' | 'green' | 'red' | 'gray'> = {
   PENDING: 'blue',
@@ -197,8 +198,7 @@ function TaskDetailContent() {
     if (!task?.attachment_path) {
       return null;
     }
-    const apiBase = import.meta.env.VITE_API_URL ?? 'http://localhost:5000/api';
-    const baseUrl = apiBase.replace(/\/api\/?$/, '');
+    const baseUrl = getBackendBaseUrl();
     return `${baseUrl}/${task.attachment_path.replace(/^\/+/, '')}`;
   }, [task?.attachment_path]);
 
@@ -206,8 +206,7 @@ function TaskDetailContent() {
     if (!task?.proof_path) {
       return null;
     }
-    const apiBase = import.meta.env.VITE_API_URL ?? 'http://localhost:5000/api';
-    const baseUrl = apiBase.replace(/\/api\/?$/, '');
+    const baseUrl = getBackendBaseUrl();
     return `${baseUrl}/${task.proof_path.replace(/^\/+/, '')}`;
   }, [task?.proof_path]);
 

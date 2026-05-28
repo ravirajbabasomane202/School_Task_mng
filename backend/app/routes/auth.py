@@ -13,27 +13,33 @@ from app.utils.response import success, error
 
 auth_bp = Blueprint('auth', __name__)
 
-MAX_ATTEMPTS = 5
-WINDOW_SECONDS = 900  # 15 minutes
+
+def _rate_limit_settings():
+    return (
+        current_app.config.get('LOGIN_MAX_ATTEMPTS', 10),
+        current_app.config.get('LOGIN_RATE_LIMIT_WINDOW_SECONDS', 900),
+    )
 
 
 def _is_rate_limited(ip: str) -> bool:
     """Check rate limit using DB-backed LoginAttempt records (works across all workers)."""
-    cutoff = datetime.now(timezone.utc) - timedelta(seconds=WINDOW_SECONDS)
+    max_attempts, window_seconds = _rate_limit_settings()
+    cutoff = datetime.now(timezone.utc) - timedelta(seconds=window_seconds)
     count = LoginAttempt.query.filter(
         LoginAttempt.ip_address == ip,
         LoginAttempt.attempted_at > cutoff
     ).count()
-    return count >= MAX_ATTEMPTS
+    return count >= max_attempts
 
 
 def _record_attempt(ip: str):
     """Record a failed login attempt in the database."""
+    _, window_seconds = _rate_limit_settings()
     attempt = LoginAttempt(ip_address=ip, attempted_at=datetime.now(timezone.utc))
     db.session.add(attempt)
     db.session.commit()
     # Prune old attempts for this IP to keep the table lean
-    cutoff = datetime.now(timezone.utc) - timedelta(seconds=WINDOW_SECONDS * 2)
+    cutoff = datetime.now(timezone.utc) - timedelta(seconds=window_seconds * 2)
     LoginAttempt.query.filter(
         LoginAttempt.ip_address == ip,
         LoginAttempt.attempted_at < cutoff
@@ -48,9 +54,11 @@ def _hash_token(token):
 @auth_bp.route('/login', methods=['POST'])
 def login():
     ip = request.headers.get('X-Forwarded-For', request.remote_addr or '').split(',')[0].strip()
+    _, window_seconds = _rate_limit_settings()
 
     if _is_rate_limited(ip):
-        return error('Too many failed login attempts. Please wait 15 minutes and try again.', 429)
+        retry_minutes = max(1, (window_seconds + 59) // 60)
+        return error(f'Too many failed login attempts. Please wait {retry_minutes} minutes and try again.', 429)
 
     data = request.get_json()
     if not data or not data.get('email') or not data.get('password'):

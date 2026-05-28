@@ -180,14 +180,14 @@ function MISReports() {
 
         <div className="mt-6 flex flex-wrap gap-3">
           <Button
-            className="bg-red-500 text-white hover:bg-red-600"
+            className="!bg-red-500 !text-white hover:!bg-red-600"
             loading={isExporting === 'pdf'}
             onClick={() => void handleExport('pdf')}
           >
             Export PDF
           </Button>
           <Button
-            className="bg-green-500 text-white hover:bg-green-600"
+            className="!bg-green-500 !text-white hover:!bg-green-600"
             loading={isExporting === 'excel'}
             onClick={() => void handleExport('excel')}
           >

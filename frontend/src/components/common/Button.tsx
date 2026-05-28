@@ -41,7 +41,7 @@ function Button({
         'inline-flex items-center justify-center gap-2 rounded-[10px] border-[0.5px] border-solid font-semibold transition focus-visible:outline-none focus-visible:ring-4 disabled:cursor-not-allowed disabled:opacity-60',
         variantClasses[variant],
         sizeClasses[size],
-        className
+        className // Custom classes come last to override variant/size classes
       ].join(' ')}
       disabled={disabled || loading}
       type={type}

@@ -147,3 +147,19 @@ def register_commands(app: Flask):
 
         db.session.commit()
         click.echo('\nDone.')
+
+    @app.cli.command('clear-login-attempts')
+    @click.option('--ip', help='Clear only the failed login attempts for a single IP address.')
+    def clear_login_attempts(ip: str | None):
+        """Clear failed login attempts so development accounts can log in again."""
+        from app.models.login_attempt import LoginAttempt
+
+        query = LoginAttempt.query
+        if ip:
+            query = query.filter_by(ip_address=ip)
+
+        deleted = query.delete(synchronize_session=False)
+        db.session.commit()
+
+        target = f' for {ip}' if ip else ''
+        click.echo(f'Cleared {deleted} failed login attempt(s){target}.')

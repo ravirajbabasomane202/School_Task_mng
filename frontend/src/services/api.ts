@@ -1,9 +1,10 @@
 import axios from 'axios';
 import { logout, setCredentials } from '../store/authSlice';
 import { store } from '../store';
+import { getApiBaseUrl } from '../utils/apiBase';
 
 const api = axios.create({
-  baseURL: import.meta.env.VITE_API_URL ?? 'http://localhost:5000/api',
+  baseURL: getApiBaseUrl(),
   withCredentials: true
 });
 
@@ -65,7 +66,7 @@ api.interceptors.response.use(
 
       try {
         const response = await axios.post(
-          `${import.meta.env.VITE_API_URL ?? 'http://localhost:5000/api'}/auth/refresh`,
+          `${getApiBaseUrl()}/auth/refresh`,
           { refreshToken: storedRefreshToken }
         );
         const newToken: string = response.data.data.accessToken;

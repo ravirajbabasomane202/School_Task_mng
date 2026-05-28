@@ -15,4 +15,9 @@ class RefreshToken(db.Model):
     user = db.relationship('User', back_populates='refresh_tokens')
 
     def is_valid(self):
-        return not self.revoked and self.expires_at > datetime.now(timezone.utc)
+        now = datetime.now(timezone.utc)
+        expires = self.expires_at
+        if expires.tzinfo is None:
+            expires = expires.replace(tzinfo=timezone.utc)
+
+        return not self.revoked and expires > now

@@ -1,7 +1,60 @@
 import os
-from flask import Flask, send_from_directory
+import re
+from flask import Flask, request, send_from_directory
 from config import config
-from app.extensions import db, migrate, jwt, socketio, cors, bcrypt, scheduler
+from app.extensions import db, migrate, jwt, socketio, bcrypt, scheduler
+
+
+DEVTUNNEL_FRONTEND_ORIGIN = re.compile(
+    r'^https://[a-z0-9-]+-5173\.[a-z0-9-]+\.devtunnels\.ms$',
+    re.IGNORECASE,
+)
+
+
+def _parse_frontend_origins(value):
+    if not value:
+        return []
+    return [origin.strip().rstrip('/') for origin in str(value).split(',') if origin.strip()]
+
+
+def _get_allowed_frontend_origins(app):
+    configured_origins = _parse_frontend_origins(app.config.get('FRONTEND_URLS'))
+    allowed_origins = list(dict.fromkeys(configured_origins))
+    allowed_patterns = []
+
+    if app.debug:
+        for origin in ('http://localhost:5173', 'http://127.0.0.1:5173'):
+            if origin not in allowed_origins:
+                allowed_origins.append(origin)
+        allowed_patterns.append(DEVTUNNEL_FRONTEND_ORIGIN)
+
+    return allowed_origins, allowed_patterns
+
+
+def _resolve_allowed_origin(origin, allowed_origins, allowed_patterns):
+    if not origin:
+        return None
+
+    normalized_origin = origin.rstrip('/')
+    if normalized_origin in allowed_origins:
+        return normalized_origin
+
+    if any(pattern.fullmatch(normalized_origin) for pattern in allowed_patterns):
+        return normalized_origin
+
+    return None
+
+
+def _append_vary_header(response, value):
+    existing = response.headers.get('Vary')
+    if not existing:
+        response.headers['Vary'] = value
+        return
+
+    vary_values = [item.strip() for item in existing.split(',') if item.strip()]
+    if value not in vary_values:
+        vary_values.append(value)
+        response.headers['Vary'] = ', '.join(vary_values)
 
 
 def create_app(config_name=None):
@@ -22,11 +75,38 @@ def create_app(config_name=None):
     migrate.init_app(app, db)
     jwt.init_app(app)
     bcrypt.init_app(app)
-    cors.init_app(app, resources={r"/api/*": {"origins": app.config['FRONTEND_URL'], "supports_credentials": True}})
     async_mode = os.environ.get('SOCKETIO_ASYNC_MODE', 'threading')
+    allowed_frontend_origins, allowed_origin_patterns = _get_allowed_frontend_origins(app)
+
+    @app.after_request
+    def add_cors_headers(response):
+        if not request.path.startswith('/api/'):
+            return response
+
+        allowed_origin = _resolve_allowed_origin(
+            request.headers.get('Origin'),
+            allowed_frontend_origins,
+            allowed_origin_patterns,
+        )
+        if not allowed_origin:
+            return response
+
+        response.headers['Access-Control-Allow-Origin'] = allowed_origin
+        response.headers['Access-Control-Allow-Credentials'] = 'true'
+        _append_vary_header(response, 'Origin')
+
+        if request.method == 'OPTIONS':
+            requested_headers = request.headers.get('Access-Control-Request-Headers')
+            response.headers['Access-Control-Allow-Headers'] = (
+                requested_headers if requested_headers else 'Authorization, Content-Type'
+            )
+            response.headers['Access-Control-Allow-Methods'] = 'GET, POST, PUT, PATCH, DELETE, OPTIONS'
+            response.headers['Access-Control-Max-Age'] = '600'
+
+        return response
 
     socketio_options = {
-        'cors_allowed_origins': app.config['FRONTEND_URL'],
+        'cors_allowed_origins': '*' if app.debug else allowed_frontend_origins,
         'async_mode': async_mode
     }
 

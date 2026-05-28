@@ -344,7 +344,7 @@ function ApprovalManagement() {
                       variant="primary"
                       onClick={() => approveMutation.mutate(approval.id)}
                       disabled={approveMutation.isPending}
-                      className="bg-green-500 text-white hover:bg-green-600"
+                      className="!bg-green-500 !text-white hover:!bg-green-600"
                     >
                       {approveMutation.isPending ? 'Approving…' : 'Approve'}
                     </Button>
