@@ -5,7 +5,7 @@ import toast from 'react-hot-toast';
 
 import Button from '../../components/common/Button';
 import TaskTable from '../../components/tables/TaskTable';
-import { ROLE_LABELS } from '../../constants/roles';
+import { ROLE_LABELS, ROLES } from '../../constants/roles';
 import api from '../../services/api';
 import * as reportService from '../../services/reportService';
 import * as taskService from '../../services/taskService';
@@ -68,6 +68,7 @@ function TaskMonitoring() {
   const navigate = useNavigate();
   const dispatch = useAppDispatch();
   const tasks = useAppSelector((state) => state.tasks.tasks);
+  const { user } = useAppSelector((state) => state.auth);
   const [searchParams] = useSearchParams();
   const initialStatus = (searchParams.get('status') as TaskStatus | null) ?? 'ALL';
   const [statusFilter, setStatusFilter] = useState<TaskStatus | 'ALL'>(initialStatus);
@@ -177,9 +178,15 @@ function TaskMonitoring() {
         reportType: inferReportType(dateFrom, dateTo),
         format,
         params: {
-          dateFrom: dateFrom || currentDateValue(),
-          dateTo: dateTo || currentDateValue(),
+          dateFrom: dateFrom || undefined,
+          dateTo: dateTo || undefined,
           departmentId: departmentFilter === 'all' ? 'all' : Number(departmentFilter)
+          ,
+          status: statusFilter !== 'ALL' ? statusFilter : undefined,
+          assignedTo: assigneeFilter !== 'all' ? Number(assigneeFilter) : undefined,
+          search: searchFilter.trim() || undefined,
+          startDateFrom: dateFrom || undefined,
+          dueDateTo: dateTo || undefined
         }
       });
       toast.success('Monitoring report exported.');
@@ -349,7 +356,9 @@ function TaskMonitoring() {
         emptyMessage="Once tasks match your filters, the monitoring grid will populate here."
         onRowClick={(task) => navigate(`/task/${task.id}`)}
         onStatusChange={handleStatusChange}
+        showActions
         tasks={filteredTasks}
+        userRole={user?.role}
       />
     </section>
   );

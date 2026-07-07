@@ -285,8 +285,7 @@ def update_task(task_id):
     old_status = task.status
 
     if 'status' in data and data['status'] != old_status and user.role == 'CHAIRMAN':
-        if data['status'] != 'ESCALATED':
-            return error('Chairman can only change task status to Escalated', 403)
+        return error('Chairman cannot change task status', 403)
 
     if 'title' in data and _is_elevated(user):
         task.title = data['title']
@@ -348,6 +347,9 @@ def update_task_status(task_id):
     if not user:
         return error('User not found', 401)
 
+    if user.role == 'CHAIRMAN':
+        return error('Chairman cannot change task status', 403)
+
     task = Task.query.get_or_404(task_id)
     if not _can_edit_task(user, task):
         return error('Forbidden', 403)
@@ -362,10 +364,6 @@ def update_task_status(task_id):
 
     if new_status not in VALID_STATUSES:
         return error(f'Invalid status. Must be one of: {", ".join(sorted(VALID_STATUSES))}', 400)
-
-    # Chairman can only set status to ESCALATED
-    if user.role == 'CHAIRMAN' and new_status != 'ESCALATED':
-        return error('Chairman can only change task status to Escalated', 403)
 
     # Non-elevated users (the assignee) cannot self-escalate a task
     if not _is_elevated(user) and new_status not in ASSIGNEE_STATUSES:

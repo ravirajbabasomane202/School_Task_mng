@@ -4,9 +4,14 @@ import api from './api';
 export type ReportType = 'DAILY' | 'WEEKLY' | 'MONTHLY' | 'CUSTOM' | 'HOUSEKEEPING';
 
 export interface ReportParams {
-  dateFrom: string;
-  dateTo: string;
+  dateFrom?: string;
+  dateTo?: string;
   departmentId?: number | 'all';
+  status?: string;
+  assignedTo?: number | 'all';
+  search?: string;
+  startDateFrom?: string;
+  dueDateTo?: string;
 }
 
 export interface ReportSummary {
@@ -65,11 +70,22 @@ interface ApiResponse<T> {
   success: boolean;
 }
 
-const buildReportParams = (params: ReportParams) => ({
-  date_from: params.dateFrom,
-  date_to: params.dateTo,
-  department_id: params.departmentId && params.departmentId !== 'all' ? params.departmentId : undefined
-});
+const buildReportParams = (params: ReportParams) => {
+  return {
+    date_from: params.dateFrom,
+    date_to: params.dateTo,
+    department_id:
+      params.departmentId && params.departmentId !== 'all' ? params.departmentId : undefined,
+    status: params.status && params.status !== 'ALL' ? params.status : undefined,
+    assigned_to:
+      params.assignedTo && params.assignedTo !== 'all'
+        ? params.assignedTo
+        : undefined,
+    search: params.search || undefined,
+    start_date_from: params.startDateFrom,
+    due_date_to: params.dueDateTo
+  };
+};
 
 export const getDailyReport = async (params: ReportParams) => {
   const response = await api.get<ApiResponse<ReportPreview>>(API_ENDPOINTS.reports.daily, {

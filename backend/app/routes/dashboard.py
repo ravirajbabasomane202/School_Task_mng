@@ -52,6 +52,7 @@ def _task_stats(tasks):
 @dashboard_bp.route('/chairman', methods=['GET'])
 @jwt_required()
 def chairman_dashboard():
+    Task.mark_overdue_delayed()
     user = db.session.get(User, get_jwt_identity())
     if not user or user.role not in ('CHAIRMAN', 'DIRECTOR'):
         return jsonify({'success': False, 'message': 'Forbidden', 'data': None}), 403
@@ -158,6 +159,7 @@ def chairman_dashboard():
 @dashboard_bp.route('/dept/<int:dept_id>', methods=['GET'])
 @jwt_required()
 def dept_dashboard(dept_id):
+    Task.mark_overdue_delayed()
     if not dept_id or dept_id <= 0:
         return success(
             {
@@ -223,6 +225,7 @@ def dept_dashboard(dept_id):
 @dashboard_bp.route('/performance', methods=['GET'])
 @jwt_required()
 def performance():
+    Task.mark_overdue_delayed()
     rows = []
     department_users = User.query.filter(
         User.role.in_(TASK_ASSIGNABLE_ROLES),
@@ -264,6 +267,7 @@ def performance():
 @dashboard_bp.route('/monthly-comparison', methods=['GET'])
 @jwt_required()
 def monthly_comparison():
+    Task.mark_overdue_delayed()
     current_year = datetime.now().year
     rows = []
 
@@ -301,6 +305,7 @@ def monthly_comparison():
 @dashboard_bp.route('/metrics', methods=['GET'])
 @jwt_required()
 def metrics():
+    Task.mark_overdue_delayed()
     all_tasks = Task.query.all()
     total, completed, delayed, pending, _, _, completion_rate = _task_stats(all_tasks)
     return success(
@@ -324,6 +329,7 @@ def director_dashboard():
 @jwt_required()
 def role_analytics(role):
     """Generic analytics endpoint used by all department roles."""
+    Task.mark_overdue_delayed()
     user = db.session.get(User, get_jwt_identity())
     if not user:
         return jsonify({'success': False, 'message': 'Unauthorized', 'data': None}), 401

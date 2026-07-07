@@ -48,7 +48,7 @@ export const useAuth = () => {
       await authService.logout();
     } finally {
       dispatch(clearCredentials());
-      navigate('/login', { replace: true });
+      navigate('/', { replace: true });
     }
   }, [dispatch, navigate]);
 

@@ -6,6 +6,7 @@ from flask_jwt_extended import (
     jwt_required, get_jwt_identity
 )
 from app.extensions import db
+from app.models.task import Task
 from app.models.user import User
 from app.models.refresh_token import RefreshToken
 from app.models.login_attempt import LoginAttempt
@@ -73,6 +74,9 @@ def login():
 
     user.last_login = datetime.now(timezone.utc)
     db.session.commit()
+
+    # Automatically mark overdue tasks as delayed during login
+    Task.mark_overdue_delayed()
 
     access_token = create_access_token(identity=user.id)
     refresh_token = create_refresh_token(identity=user.id)

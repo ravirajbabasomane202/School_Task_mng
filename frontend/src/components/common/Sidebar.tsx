@@ -120,7 +120,7 @@ function Sidebar() {
   });
 
   return (
-    <aside className="flex h-screen w-[196px] shrink-0 flex-col border-r-[0.5px] border-[#EFF2F6] bg-[#F8F9FC]">
+    <aside className="flex min-h-screen w-[196px] shrink-0 flex-col border-r-[0.5px] border-[#EFF2F6] bg-[#F8F9FC]">
       <div className="border-b border-b-[0.5px] border-[#EFF2F6] px-4 py-4">
         <div className="flex items-center gap-3">
           <div className="flex h-[30px] w-[30px] items-center justify-center rounded-[10px] bg-[#185FA5] text-xs font-semibold text-white">

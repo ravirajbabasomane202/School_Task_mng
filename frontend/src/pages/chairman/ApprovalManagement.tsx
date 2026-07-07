@@ -3,6 +3,7 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import toast from 'react-hot-toast';
 
 import Button from '../../components/common/Button';
+import { MODULE_TASK_GROUPS } from '../../constants/moduleTasks';
 import { getAllApprovals, approveApproval, rejectApproval } from '../../services/approvalService';
 import * as taskService from '../../services/taskService';
 import { APPROVAL_TYPE_META } from '../../types/approval.types';
@@ -385,7 +386,7 @@ function ApprovalManagement() {
         </div>
 
         <div className="space-y-3">
-          {MODULE_TASK_MAP.map((module, idx) => {
+          {MODULE_TASK_GROUPS.map((module, idx) => {
             const { assigned, completed, pending } = getTaskCountForHead(module.tasks);
             const isOpen = expandedHead === module.head;
             const completionPct = module.tasks.length > 0

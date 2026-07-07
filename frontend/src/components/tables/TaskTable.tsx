@@ -6,11 +6,13 @@ interface TaskTableProps {
   emptyMessage?: string;
   onRowClick?: (task: Task) => void;
   tasks: Task[];
-  showActions?: boolean;
+  showActions?: boolean | ((task: Task) => boolean);
   onEdit?: (task: Task) => void;
   onDelete?: (taskId: number) => void;
   /** Allow status change inline (for department/all-user view) */
   onStatusChange?: (taskId: number, newStatus: TaskStatus, proofFile?: File) => Promise<void>;
+  /** Role of the logged-in user — used to restrict status options for Chairman */
+  userRole?: string;
 }
 
 const priorityStripe: Record<TaskPriority, string> = {
@@ -28,6 +30,7 @@ const statusVariant: Record<TaskStatus, 'blue' | 'amber' | 'green' | 'red' | 'gr
 };
 
 const ALL_STATUSES: TaskStatus[] = ['PENDING', 'IN_PROGRESS', 'COMPLETED', 'DELAYED', 'ESCALATED'];
+const CHAIRMAN_STATUSES: TaskStatus[] = ['ESCALATED'];
 
 const formatLabel = (value: string) =>
   value
@@ -60,13 +63,20 @@ const getCadence = (task: Task): TaskCadence => {
 function StatusChangeModal({
   task,
   onClose,
-  onConfirm
+  onConfirm,
+  userRole
 }: {
   task: Task;
   onClose: () => void;
   onConfirm: (newStatus: TaskStatus, proof?: File) => Promise<void>;
+  userRole?: string;
 }) {
-  const [newStatus, setNewStatus] = useState<TaskStatus>(task.status);
+  const isChairman = userRole === 'CHAIRMAN';
+  const availableStatuses = isChairman ? CHAIRMAN_STATUSES : ALL_STATUSES;
+
+  const [newStatus, setNewStatus] = useState<TaskStatus>(
+    isChairman ? 'ESCALATED' : task.status
+  );
   const [proof, setProof] = useState<File | undefined>();
   const [saving, setSaving] = useState(false);
   const [err, setErr] = useState<string | null>(null);
@@ -102,7 +112,7 @@ function StatusChangeModal({
             value={newStatus}
             onChange={(e) => { setNewStatus(e.target.value as TaskStatus); setErr(null); }}
           >
-            {ALL_STATUSES.map((s) => (
+            {availableStatuses.map((s) => (
               <option key={s} value={s}>{formatLabel(s)}</option>
             ))}
           </select>
@@ -152,7 +162,8 @@ function TaskTable({
   showActions,
   onEdit,
   onDelete,
-  onStatusChange
+  onStatusChange,
+  userRole
 }: TaskTableProps) {
   const [statusModalTask, setStatusModalTask] = useState<Task | null>(null);
 
@@ -167,6 +178,8 @@ function TaskTable({
     );
   }
 
+  const actionsEnabled = typeof showActions === 'function' ? tasks.some(showActions) : Boolean(showActions);
+
   const headers = [
     'Task title',
     'Assigned to',
@@ -175,7 +188,7 @@ function TaskTable({
     'Assign date',
     'Deadline',
     'Status',
-    ...(showActions || onStatusChange ? ['Actions'] : [])
+    ...(actionsEnabled ? ['Actions'] : [])
   ];
 
   return (
@@ -183,6 +196,7 @@ function TaskTable({
       {statusModalTask && onStatusChange && (
         <StatusChangeModal
           task={statusModalTask}
+          userRole={userRole}
           onClose={() => setStatusModalTask(null)}
           onConfirm={async (newStatus, proof) => {
             await onStatusChange(statusModalTask.id, newStatus, proof);
@@ -254,7 +268,7 @@ function TaskTable({
                     </div>
                   </td>
 
-                  {(showActions || onStatusChange) && (
+                  {((typeof showActions === 'function' ? showActions(task) : Boolean(showActions))) && (
                     <td
                       className="px-4 py-3.5"
                       onClick={(e) => e.stopPropagation()}

@@ -6,7 +6,7 @@ class ReportHistory(db.Model):
     __tablename__ = 'report_history'
 
     id = db.Column(db.Integer, primary_key=True)
-    type = db.Column(db.String(10), nullable=False)  # DAILY/WEEKLY/MONTHLY
+    type = db.Column(db.String(20), nullable=False)  # DAILY/WEEKLY/MONTHLY/HOUSEKEEPING
     department_id = db.Column(db.Integer, db.ForeignKey('departments.id'), nullable=True)
     date_from = db.Column(db.Date, nullable=True)
     date_to = db.Column(db.Date, nullable=True)

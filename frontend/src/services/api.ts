@@ -47,7 +47,7 @@ api.interceptors.response.use(
 
       if (!storedRefreshToken) {
         store.dispatch(logout());
-        window.location.assign('/login');
+        window.location.assign('/');
         return Promise.reject(error);
       }
 

@@ -38,3 +38,6 @@ Thumbs.db
 
 # VS Code
 .vscode/
+
+backend/uploads/*
+!backend/uploads/.gitkeep

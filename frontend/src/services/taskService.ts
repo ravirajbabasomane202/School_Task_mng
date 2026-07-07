@@ -129,19 +129,23 @@ export const deleteTask = async (id: number): Promise<void> => {
 export const updateTaskStatus = async (
   id: number,
   status: import('../types/task.types').TaskStatus,
-  proofFile?: File
+  proofFile?: File,
+  comment?: string
 ): Promise<Task> => {
   // With proof: multipart PUT to /tasks/{id} (handles both status + attachment in one request)
   if (proofFile) {
     const formData = new FormData();
     formData.append('status', status);
     formData.append('attachment', proofFile);
+    if (comment) formData.append('comment', comment);
     const response = await api.put<ApiResponse<Task>>(API_ENDPOINTS.tasks.update(id), formData, {
       headers: { 'Content-Type': 'multipart/form-data' }
     });
     return response.data.data;
   }
   // Status-only: use dedicated /tasks/{id}/status endpoint
-  const response = await api.put<ApiResponse<Task>>(API_ENDPOINTS.tasks.status(id), { status });
+  const body: Record<string, string> = { status };
+  if (comment) body.comment = comment;
+  const response = await api.put<ApiResponse<Task>>(API_ENDPOINTS.tasks.status(id), body);
   return response.data.data;
 };

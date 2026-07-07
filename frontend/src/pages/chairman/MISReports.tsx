@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react';
+import { useMemo, useState, type ChangeEvent } from 'react';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import toast from 'react-hot-toast';
 
@@ -44,11 +44,98 @@ function MISReports() {
   const queryClient = useQueryClient();
   const [reportType, setReportType] = useState<ReportType>('DAILY');
   const [departmentId, setDepartmentId] = useState<string>('all');
-  const [dateFrom, setDateFrom] = useState<string>(defaultFrom);
+  const [dateFrom, setDateFrom] = useState<string>(defaultTo);
   const [dateTo, setDateTo] = useState<string>(defaultTo);
+  const [selectedMonth, setSelectedMonth] = useState<string>(
+    `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, '0')}`
+  );
   const [isExporting, setIsExporting] = useState<'pdf' | 'excel' | null>(null);
 
-  const previewReady = Boolean(dateFrom && dateTo && dateFrom <= dateTo);
+  const monthOptions = useMemo(
+    () =>
+      Array.from({ length: 12 }, (_, index) => {
+        const month = index + 1;
+        const label = new Date(today.getFullYear(), index).toLocaleString('en-US', {
+          month: 'short'
+        });
+        return {
+          label,
+          value: `${today.getFullYear()}-${String(month).padStart(2, '0')}`
+        };
+      }),
+    []
+  );
+
+  const getMonthRange = (monthValue: string) => {
+    const [year, month] = monthValue.split('-').map(Number);
+    const from = new Date(year, month - 1, 1);
+    const to = new Date(year, month, 0);
+    return {
+      from: from.toISOString().slice(0, 10),
+      to: to.toISOString().slice(0, 10)
+    };
+  };
+
+
+  const handleReportTypeChange = (value: ReportType) => {
+    setReportType(value);
+    setDepartmentId('all');
+
+    if (value === 'DAILY') {
+      setDateFrom(defaultTo);
+      setDateTo(defaultTo);
+    } else if (value === 'WEEKLY') {
+      const weekStart = new Date(today);
+      weekStart.setDate(today.getDate() - 6);
+      setDateFrom(weekStart.toISOString().slice(0, 10));
+      setDateTo(defaultTo);
+    } else if (value === 'MONTHLY') {
+      const newMonth = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, '0')}`;
+      setSelectedMonth(newMonth);
+      const range = getMonthRange(newMonth);
+      setDateFrom(range.from);
+      setDateTo(range.to);
+    } else {
+      setDateFrom(defaultFrom);
+      setDateTo(defaultTo);
+    }
+  };
+
+  const handleMonthChange = (event: ChangeEvent<HTMLSelectElement>) => {
+    const value = event.target.value;
+    setSelectedMonth(value);
+    const range = getMonthRange(value);
+    setDateFrom(range.from);
+    setDateTo(range.to);
+  };
+
+  const handleDailyDateChange = (value: string) => {
+    setDateFrom(value);
+    setDateTo(value);
+  };
+
+  const handleWeeklyFromChange = (value: string) => {
+    const candidateTo = new Date(value);
+    candidateTo.setDate(candidateTo.getDate() + 6);
+    const nextTo = candidateTo.toISOString().slice(0, 10);
+    setDateFrom(value);
+    setDateTo(nextTo);
+  };
+
+  const handleWeeklyToChange = (value: string) => {
+    const candidateFrom = new Date(value);
+    candidateFrom.setDate(candidateFrom.getDate() - 6);
+    const nextFrom = candidateFrom.toISOString().slice(0, 10);
+    setDateFrom(nextFrom);
+    setDateTo(value);
+  };
+
+  const weeklyRangeInvalid =
+    reportType === 'WEEKLY' && Boolean(dateFrom && dateTo && new Date(dateTo).getTime() - new Date(dateFrom).getTime() !== 6 * 24 * 60 * 60 * 1000);
+
+  const previewReady = Boolean(
+    dateFrom && dateTo && dateFrom <= dateTo && (reportType !== 'WEEKLY' || !weeklyRangeInvalid)
+  );
 
   const departmentsQuery = useQuery({
     queryKey: ['departments', 'mis-reports'],
@@ -131,7 +218,7 @@ function MISReports() {
             <label className="mb-2 block text-sm font-medium text-[#36506C]">Report type</label>
             <select
               value={reportType}
-              onChange={(event) => setReportType(event.target.value as ReportType)}
+              onChange={(event) => handleReportTypeChange(event.target.value as ReportType)}
               className="w-full min-h-[38px] rounded-[10px] border border-[#DCE2EA] bg-[#F8F9FC] px-3 text-sm text-[#1E293B] outline-none focus:border-[#185FA5] focus:ring-4 focus:ring-[#185FA5]/10"
             >
               <option value="DAILY">Daily</option>
@@ -163,19 +250,59 @@ function MISReports() {
             </select>
           </div>
 
-          <Input
-            type="date"
-            label="Date from"
-            value={dateFrom}
-            onChange={(event) => setDateFrom(event.target.value)}
-          />
-
-          <Input
-            type="date"
-            label="Date to"
-            value={dateTo}
-            onChange={(event) => setDateTo(event.target.value)}
-          />
+          {reportType === 'DAILY' ? (
+            <Input
+              type="date"
+              label="Date"
+              value={dateFrom}
+              onChange={(event) => handleDailyDateChange(event.target.value)}
+            />
+          ) : reportType === 'WEEKLY' ? (
+            <>
+              <Input
+                type="date"
+                label="Start date"
+                value={dateFrom}
+                onChange={(event) => handleWeeklyFromChange(event.target.value)}
+              />
+              <Input
+                type="date"
+                label="End date"
+                value={dateTo}
+                onChange={(event) => handleWeeklyToChange(event.target.value)}
+              />
+            </>
+          ) : reportType === 'MONTHLY' ? (
+            <div>
+              <label className="mb-2 block text-sm font-medium text-[#36506C]">Month</label>
+              <select
+                value={selectedMonth}
+                onChange={handleMonthChange}
+                className="w-full min-h-[38px] rounded-[10px] border border-[#DCE2EA] bg-[#F8F9FC] px-3 text-sm text-[#1E293B] outline-none focus:border-[#185FA5] focus:ring-4 focus:ring-[#185FA5]/10"
+              >
+                {monthOptions.map((option) => (
+                  <option key={option.value} value={option.value}>
+                    {option.label}
+                  </option>
+                ))}
+              </select>
+            </div>
+          ) : (
+            <>
+              <Input
+                type="date"
+                label="Date from"
+                value={dateFrom}
+                onChange={(event) => setDateFrom(event.target.value)}
+              />
+              <Input
+                type="date"
+                label="Date to"
+                value={dateTo}
+                onChange={(event) => setDateTo(event.target.value)}
+              />
+            </>
+          )}
         </div>
 
         <div className="mt-6 flex flex-wrap gap-3">
@@ -197,6 +324,9 @@ function MISReports() {
 
         {!previewReady ? (
           <p className="mt-4 text-sm text-[#C13F3A]">Date to must be the same as or after date from.</p>
+        ) : null}
+        {weeklyRangeInvalid ? (
+          <p className="mt-4 text-sm text-[#C13F3A]">Weekly reports must cover exactly 7 days.</p>
         ) : null}
       </div>
 
@@ -275,7 +405,7 @@ function MISReports() {
                     </thead>
                     <tbody>
                       {previewQuery.data.tasks.length > 0 ? (
-                        previewQuery.data.tasks.slice(0, 12).map((task) => (
+                        previewQuery.data.tasks.map((task) => (
                           <tr className="border-t border-[#EFF2F6]" key={task.id}>
                             <td className="px-4 py-3 text-sm font-medium text-[#1E293B]">
                               {task.task}

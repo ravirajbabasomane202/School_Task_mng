@@ -5,6 +5,7 @@ import Sidebar from '../components/common/Sidebar';
 import { DEPARTMENT_HEAD_ROLES, ROLES } from '../constants/roles';
 import { useSocket } from '../hooks/useSocket';
 import ChangePassword from '../pages/auth/ChangePassword';
+import LandingPage from '../pages/LandingPage';
 import Login from '../pages/auth/Login';
 import UnauthorizedPage from '../pages/auth/UnauthorizedPage';
 import NotificationsPage from '../pages/NotificationsPage';
@@ -50,6 +51,7 @@ export default function AppRouter() {
   return (
     <BrowserRouter>
       <Routes>
+        <Route path="/" element={<LandingPage />} />
         <Route path="/login" element={<Login />} />
         <Route path="/unauthorized" element={<UnauthorizedPage />} />
 
@@ -65,6 +67,10 @@ export default function AppRouter() {
 
         <Route element={<ProtectedRoute allowedRoles={[ROLES.CHAIRMAN]} />}>
           <Route path="/chairman/*" element={<ChairmanDashboard />} />
+        </Route>
+
+        <Route element={<ProtectedRoute allowedRoles={[ROLES.DIRECTOR]} />}>
+          <Route path="/director/*" element={<DirectorDashboard />} />
         </Route>
 
         <Route element={<ProtectedRoute allowedRoles={DEPARTMENT_HEAD_ROLES} />}>
@@ -83,7 +89,7 @@ export default function AppRouter() {
           </Route>
         </Route>
 
-        <Route path="*" element={<Navigate to="/login" replace />} />
+        <Route path="*" element={<Navigate to="/" replace />} />
       </Routes>
     </BrowserRouter>
   );

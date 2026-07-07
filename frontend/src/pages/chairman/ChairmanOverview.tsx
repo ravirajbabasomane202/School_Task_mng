@@ -341,6 +341,7 @@ function ChairmanOverview() {
             emptyMessage="Newly assigned tasks will appear here."
             onRowClick={(task) => navigate(`/task/${task.id}`)}
             onStatusChange={handleStatusChange}
+            showActions={false}
             tasks={dashboardData.recentTasks.slice(0, 5)}
           />
         </div>

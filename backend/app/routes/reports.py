@@ -1,6 +1,7 @@
 import io
 import os
-from datetime import datetime, timezone
+from datetime import datetime, timedelta, timezone
+from sqlalchemy import or_, and_
 
 from flask import Blueprint, Response, current_app, request, send_file
 from flask_jwt_extended import jwt_required, get_jwt_identity
@@ -27,7 +28,17 @@ def _parse_date(value):
         return None
 
 
-def _get_tasks(date_from, date_to, dept_id=None, user=None):
+def _get_tasks(
+    date_from,
+    date_to,
+    dept_id=None,
+    user=None,
+    status=None,
+    assigned_to=None,
+    search=None,
+    start_date_from=None,
+    due_date_to=None
+):
     query = Task.query
 
     # Scope to the user's department unless they are CHAIRMAN/DIRECTOR
@@ -50,10 +61,49 @@ def _get_tasks(date_from, date_to, dept_id=None, user=None):
             except ValueError:
                 pass
 
-    if date_from:
-        query = query.filter(Task.due_date >= date_from)
-    if date_to:
-        query = query.filter(Task.due_date <= date_to)
+        if status and status != 'ALL':
+            query = query.filter_by(status=status)
+
+        if assigned_to:
+            try:
+                query = query.filter_by(assigned_to=int(assigned_to))
+            except ValueError:
+                pass
+
+        if search:
+            query = query.filter(
+                or_(Task.title.ilike(f'%{search}%'), Task.description.ilike(f'%{search}%'))
+            )
+
+        # Determine effective date range coming from either explicit date_from/date_to
+        # or the monitoring filters start_date_from/due_date_to.
+        eff_from = date_from or start_date_from
+        eff_to = date_to or due_date_to
+
+        if eff_from and eff_to:
+            end_of_day = eff_to + timedelta(days=1)
+            # Include tasks that either have due_date within range OR have start_date within range
+            # (and possibly no due_date). This mirrors client-side monitoring filters
+            query = query.filter(
+                or_(
+                    and_(
+                        Task.start_date != None,
+                        Task.start_date <= end_of_day,
+                        or_(Task.due_date == None, Task.due_date >= eff_from)
+                    ),
+                    and_(
+                        Task.due_date != None,
+                        Task.due_date >= eff_from,
+                        Task.due_date < end_of_day
+                    )
+                )
+            )
+        else:
+            if date_from:
+                query = query.filter(Task.due_date >= date_from)
+            if date_to:
+                end_of_day = date_to + timedelta(days=1)
+                query = query.filter(Task.due_date < end_of_day)
 
     return query.order_by(Task.due_date.asc(), Task.created_at.desc()).all()
 
@@ -353,6 +403,11 @@ def export_report():
     date_from = _parse_date(request.args.get('date_from'))
     date_to = _parse_date(request.args.get('date_to'))
     dept_id = request.args.get('department_id')
+    status = request.args.get('status')
+    assigned_to = request.args.get('assigned_to')
+    search = request.args.get('search')
+    start_date_from = _parse_date(request.args.get('start_date_from'))
+    due_date_to = _parse_date(request.args.get('due_date_to'))
     report_type = request.args.get('type', 'DAILY').upper()
 
     if fmt not in ('pdf', 'excel'):
@@ -369,7 +424,17 @@ def export_report():
         if hk_dept:
             dept_id = str(hk_dept.id)
 
-    tasks = _get_tasks(date_from, date_to, dept_id, user=user)
+    tasks = _get_tasks(
+        date_from,
+        date_to,
+        dept_id,
+        user=user,
+        status=status,
+        assigned_to=assigned_to,
+        search=search,
+        start_date_from=start_date_from,
+        due_date_to=due_date_to
+    )
     payload = _report_payload(tasks, include_performance=report_type in ('MONTHLY', 'CUSTOM'))
     timestamp = datetime.now(timezone.utc).strftime('%Y%m%d-%H%M%S-%f')
     file_stem = f'{report_type.lower()}-{timestamp}'
@@ -398,20 +463,30 @@ def export_report():
     db.session.add(report_record)
     db.session.commit()
 
+    # Log and include the number of tasks exported to help debugging
+    task_count = len(tasks)
+    current_app.logger.info(
+        f"Exporting report type={report_type} dept={department_id} date_from={date_from} date_to={date_to} tasks={task_count}"
+    )
+
     if fmt == 'excel':
-        return send_file(
+        resp = send_file(
             excel_abs_path,
             mimetype='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
             download_name=f'{file_stem}.xlsx',
             as_attachment=True
         )
+        resp.headers['X-Report-Task-Count'] = str(task_count)
+        return resp
 
-    return send_file(
+    resp = send_file(
         pdf_abs_path,
         mimetype='application/pdf',
         download_name=f'{file_stem}.pdf',
         as_attachment=True
     )
+    resp.headers['X-Report-Task-Count'] = str(task_count)
+    return resp
 
 
 @reports_bp.route('/history', methods=['GET'])

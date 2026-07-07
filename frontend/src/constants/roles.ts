@@ -18,7 +18,7 @@ export type Role = (typeof ROLES)[keyof typeof ROLES];
 
 export const ROLE_LABELS: Record<Role, string> = {
   [ROLES.CHAIRMAN]: 'Chairman',
-  [ROLES.DIRECTOR]: 'School Manager',
+  [ROLES.DIRECTOR]: 'School Director',
   [ROLES.PROPERTY]: 'Property & Maintenance Head',
   [ROLES.FINANCE]: 'Finance Head',
   [ROLES.ADMIN]: 'Admin Head',

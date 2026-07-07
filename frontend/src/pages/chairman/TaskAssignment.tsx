@@ -5,7 +5,8 @@ import { toast } from 'react-hot-toast';
 import Button from '../../components/common/Button';
 import Input from '../../components/common/Input';
 import TaskTable from '../../components/tables/TaskTable';
-import { ROLE_LABELS, TASK_ASSIGNABLE_ROLES } from '../../constants/roles';
+import { ROLES, ROLE_LABELS, TASK_ASSIGNABLE_ROLES } from '../../constants/roles';
+import { PREDEFINED_TASK_TITLES, TASK_TITLE_GROUPS as MODULE_TASK_TITLE_GROUPS } from '../../constants/moduleTasks';
 import * as taskService from '../../services/taskService';
 import * as userService from '../../services/userService';
 import { setUsers } from '../../store/userSlice';
@@ -96,7 +97,7 @@ const TASK_TITLE_GROUPS: Array<{ group: string; titles: string[] }> = [
     ],
   },
   {
-    group: 'Admission Head / Marketing',
+    group: 'Admission Head / Marketing Executive',
     titles: [
       'Admission Status',
       'Admission Enquiry (Daily)',
@@ -187,8 +188,6 @@ const TASK_TITLE_GROUPS: Array<{ group: string; titles: string[] }> = [
   },
 ];
 
-const PREDEFINED_TITLES = TASK_TITLE_GROUPS.flatMap((g) => g.titles);
-
 const initialForm: CreateTaskPayload = {
   title: '',
   description: '',
@@ -199,11 +198,41 @@ const initialForm: CreateTaskPayload = {
   due_date: ''
 };
 
+const formatAssignableUserLabel = (user: {
+  role?: string | null;
+  name?: string | null;
+}) => {
+  const label = ROLE_LABELS[user.role as keyof typeof ROLE_LABELS] ?? String(user.role ?? '').trim();
+  const name = String(user.name ?? '').trim();
+
+  if (!name) {
+    return label;
+  }
+
+  const normalizedLabel = label.toLowerCase();
+  const normalizedName = name.toLowerCase();
+
+  if (
+    normalizedName === normalizedLabel ||
+    normalizedName.includes(normalizedLabel) ||
+    normalizedLabel.includes(normalizedName)
+  ) {
+    return name;
+  }
+
+  if (name.includes(' - ')) {
+    return name.split(' - ')[0].trim();
+  }
+
+  return `${label} - ${name}`;
+};
+
 function TaskAssignment() {
   const navigate = useNavigate();
   const dispatch = useAppDispatch();
   const tasks = useAppSelector((state) => state.tasks.tasks);
   const users = useAppSelector((state) => state.users.users);
+  const user = useAppSelector((state) => state.auth.user);
   const [activeStatus, setActiveStatus] = useState<TaskStatus | 'ALL'>('ALL');
   const [file, setFile] = useState<File | undefined>();
   const [error, setError] = useState<string | null>(null);
@@ -246,23 +275,124 @@ function TaskAssignment() {
     ['HOUSEKEEPING', 'HOUSEKEEPING_HEAD', 'HOUSE_KEEPING', 'HOUSE_KEEPING_HEAD', 'HOUSE KEEPING', 'HOUSE KEEPING HEAD'].includes(normalizedRole) ||
     departmentName?.toLowerCase().includes('housekeep');
 
-  const assignableUsers = users
-    .filter((user) => {
-      const normalizedRole = normalizeRole(user.role);
-      return isAssignableRole(normalizedRole, user.departmentName ?? user.department?.name);
-    })
-    .sort((left, right) => {
-      const leftRole = normalizeRole(left.role);
-      const rightRole = normalizeRole(right.role);
-      const leftIndex = TASK_ASSIGNABLE_ROLES.indexOf(leftRole as any);
-      const rightIndex = TASK_ASSIGNABLE_ROLES.indexOf(rightRole as any);
+  const assignableUsers = Array.from(
+    users
+      .filter((user) => {
+        const normalizedRole = normalizeRole(user.role);
+        return isAssignableRole(normalizedRole, user.departmentName ?? user.department?.name);
+      })
+      .reduce((map, user) => {
+        const label = formatAssignableUserLabel(user);
+        const key = label.toLowerCase();
+        if (!map.has(key)) {
+          map.set(key, user);
+        }
+        return map;
+      }, new Map<string, any>())
+      .values()
+  ).sort((left, right) => {
+    const leftRole = normalizeRole(left.role);
+    const rightRole = normalizeRole(right.role);
+    const leftIndex = TASK_ASSIGNABLE_ROLES.indexOf(leftRole as any);
+    const rightIndex = TASK_ASSIGNABLE_ROLES.indexOf(rightRole as any);
 
-      if (leftIndex !== rightIndex) {
-        return leftIndex - rightIndex;
+    if (leftIndex !== rightIndex) {
+      return leftIndex - rightIndex;
+    }
+
+    return left.name.localeCompare(right.name);
+  });
+
+  const TITLE_GROUP_FILTER: Record<string, string[]> = {
+    [ROLES.CHAIRMAN]: [
+      'School Director',
+      'Admin Head',
+      'Admin Assistance',
+      'Finance Head',
+      'Admission Head',
+      'HR Head',
+      'Purchase Head',
+      'Transport Head',
+      'IT Head',
+      'Front Desk',
+      'HouseKeeping'
+    ],
+    [ROLES.DIRECTOR]: ['School Director'],
+    [ROLES.PRINCIPAL]: ['School Director', 'Admin Head', 'Admin Assistance'],
+    [ROLES.ADMIN]: ['Admin Head', 'Admin Assistance'],
+    [ROLES.FINANCE]: ['Finance Head'],
+    [ROLES.ADMISSION]: ['Admission Head'],
+    [ROLES.HR]: ['HR Head'],
+    [ROLES.PURCHASE]: ['Purchase Head'],
+    [ROLES.IT]: ['IT Head'],
+    [ROLES.TRANSPORT]: ['Transport Head'],
+    [ROLES.HOUSEKEEPING]: ['HouseKeeping Head'],
+    [ROLES.FRONT_DESK]: ['Front Desk'],
+    [ROLES.PROPERTY]: []
+  };
+
+  const selectedAssignee = assignableUsers.find((assignee) => assignee.id === form.assigned_to);
+  const selectedAssigneeRole = normalizeRole(selectedAssignee?.role);
+  const selectedAssigneeName = selectedAssignee?.name?.toLowerCase() ?? '';
+  const selectedAssigneeEmail = selectedAssignee?.email?.toLowerCase() ?? '';
+  const selectedAssigneeDepartment = (
+    selectedAssignee?.departmentName ??
+    selectedAssignee?.department?.name ??
+    ''
+  ).toLowerCase();
+
+  const getAssigneeTitleKeywords = () => {
+    if (!selectedAssignee) {
+      return user?.role ? TITLE_GROUP_FILTER[user.role] : TITLE_GROUP_FILTER[ROLES.CHAIRMAN];
+    }
+
+    if (selectedAssigneeRole === ROLES.ADMIN) {
+      if (
+        selectedAssigneeName.includes('assistance') ||
+        selectedAssigneeName.includes('assistant') ||
+        selectedAssigneeEmail.includes('assistance')
+      ) {
+        return ['Admin Assistance'];
       }
+      return ['Admin Head'];
+    }
 
-      return left.name.localeCompare(right.name);
-    });
+    if (
+      selectedAssigneeRole === ROLES.DIRECTOR ||
+      selectedAssigneeName.includes('director') ||
+      selectedAssigneeName.includes('school manager')
+    ) {
+      return ['School Director'];
+    }
+
+    if (
+      selectedAssigneeRole === ROLES.HOUSEKEEPING ||
+      selectedAssigneeDepartment.includes('housekeep')
+    ) {
+      return ['HouseKeeping Head'];
+    }
+
+    if (
+      selectedAssigneeRole === ROLES.FRONT_DESK ||
+      selectedAssigneeDepartment.includes('front desk') ||
+      selectedAssigneeName.includes('front desk') ||
+      selectedAssigneeName.includes('reception')
+    ) {
+      return ['Front Desk'];
+    }
+
+    return TITLE_GROUP_FILTER[selectedAssigneeRole] ?? [];
+  };
+
+  const roleTitleKeywords = getAssigneeTitleKeywords();
+  const titleGroups = roleTitleKeywords
+    ? MODULE_TASK_TITLE_GROUPS.filter((group) =>
+        roleTitleKeywords.some((keyword) => group.group.includes(keyword))
+      )
+    : MODULE_TASK_TITLE_GROUPS;
+
+  const visibleTaskGroups = roleTitleKeywords ? titleGroups : MODULE_TASK_TITLE_GROUPS;
+
   const filteredTasks =
     activeStatus === 'ALL' ? tasks : tasks.filter((task) => task.status === activeStatus);
 
@@ -332,7 +462,7 @@ function TaskAssignment() {
       department_id: task.department_id ?? null,
     });
     // detect if title is a preset
-    if (PREDEFINED_TITLES.includes(task.title)) {
+    if (PREDEFINED_TASK_TITLES.includes(task.title)) {
       setTitleMode('preset');
     } else {
       setTitleMode('custom');
@@ -379,18 +509,20 @@ function TaskAssignment() {
                 );
                 handleChange('assigned_to', Number(event.target.value));
                 handleChange('department_id', selectedUser?.department_id ?? null);
+                setTitleMode('preset');
+                handleChange('title', '');
               }}
               required
               value={form.assigned_to || ''}
             >
               <option value="">
                 {assignableUsers.length === 0
-                  ? 'No School Manager or department heads found'
-                  : 'Select School Manager / department head'}
+                  ? 'No School Director or department heads found'
+                  : 'Select an assignee'}
               </option>
               {assignableUsers.map((user) => (
                 <option key={user.id} value={user.id}>
-                  {ROLE_LABELS[user.role]} - {user.name}
+                  {formatAssignableUserLabel(user)}
                 </option>
               ))}
             </select>
@@ -411,7 +543,7 @@ function TaskAssignment() {
               required={titleMode !== 'custom'}
             >
               <option value="">— Select a predefined title —</option>
-              {TASK_TITLE_GROUPS.map((group) => (
+              {visibleTaskGroups.map((group) => (
                 <optgroup key={group.group} label={group.group}>
                   {group.titles.map((t) => (
                     <option key={t} value={t}>{t}</option>

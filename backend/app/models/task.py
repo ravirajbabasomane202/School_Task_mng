@@ -57,6 +57,24 @@ class Task(db.Model):
             data['history'] = [h.to_dict() for h in self.history]
         return data
 
+    @classmethod
+    def mark_overdue_delayed(cls):
+        now = datetime.now(timezone.utc)
+        overdue_tasks = cls.query.filter(
+            cls.due_date != None,
+            cls.due_date < now,
+            cls.status.in_(['PENDING', 'IN_PROGRESS'])
+        ).all()
+
+        if not overdue_tasks:
+            return 0
+
+        for task in overdue_tasks:
+            task.status = 'DELAYED'
+
+        db.session.commit()
+        return len(overdue_tasks)
+
 
 class TaskHistory(db.Model):
     __tablename__ = 'task_history'
