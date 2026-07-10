@@ -13,6 +13,8 @@ import PerformanceAnalytics from './PerformanceAnalytics';
 import UserManagement from './UserManagement';
 import ScheduleMeeting from './ScheduleMeeting';
 import LeaveRequestsPage from '../departments/LeaveRequestsPage';
+import AddRegister from './AddRegister';
+import RegisterMonitoring from './RegisterMonitoring';
 
 function ChairmanDashboard() {
   useSocket();
@@ -66,6 +68,14 @@ function ChairmanDashboard() {
           <Route
             element={<LeaveRequestsPage />}
             path="leave"
+          />
+          <Route
+            element={<AddRegister />}
+            path="add-register"
+          />
+          <Route
+            element={<RegisterMonitoring />}
+            path="register-monitoring"
           />
         </Routes>
       </main>

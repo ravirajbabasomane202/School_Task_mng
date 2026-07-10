@@ -21,6 +21,7 @@ import SalaryIncrementsPage from '../pages/departments/SalaryIncrementsPage';
 import RecruitmentPage from '../pages/departments/RecruitmentPage';
 import AssetManagementPage from '../pages/departments/AssetManagementPage';
 import PurchaseOrdersPage from '../pages/departments/PurchaseOrdersPage';
+import RegistersPage from '../pages/departments/RegistersPage';
 import ProtectedRoute from './ProtectedRoute';
 import AnalyticsRouter from '../pages/departments/analytics/AnalyticsRouter';
 
@@ -82,6 +83,7 @@ export default function AppRouter() {
             <Route path="announcements" element={<Announcements />} />
             <Route path="notifications" element={<NotificationsPage />} />
             <Route path="leave"         element={<LeaveRequestsPage />} />
+            <Route path="registers"     element={<RegistersPage />} />
             <Route path="salary"        element={<SalaryIncrementsPage />} />
             <Route path="recruitment"   element={<RecruitmentPage />} />
             <Route path="assets"        element={<AssetManagementPage />} />

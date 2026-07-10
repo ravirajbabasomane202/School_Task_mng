@@ -12,6 +12,7 @@ import AssignedTasks from '../departments/AssignedTasks';
 import Announcements from '../departments/Announcements';
 import NotificationsPage from '../NotificationsPage';
 import LeaveRequestsPage from '../departments/LeaveRequestsPage';
+import RegistersPage from '../departments/RegistersPage';
 import DirectorApprovalsPage from './DirectorApprovalsPage';
 import DirectorReportsPage from './DirectorReportsPage';
 import DirectorMeetingsPage from './DirectorMeetingsPage';
@@ -138,6 +139,7 @@ function DirectorDashboard() {
            <Route path="announcements" element={<Announcements />} />
            <Route path="notifications" element={<NotificationsPage />} />
            <Route path="leave"         element={<LeaveRequestsPage />} />
+           <Route path="registers"     element={<RegistersPage />} />
          </Routes>
       </main>
     </div>

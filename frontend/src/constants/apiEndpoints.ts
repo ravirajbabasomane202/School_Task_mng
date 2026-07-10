@@ -83,6 +83,16 @@ export const ASSET_ENDPOINTS = {
   delete: (id: number | string) => `/assets/${id}`,
 } as const;
 
+export const REGISTER_ENDPOINTS = {
+  list: '/registers',
+  calendar: '/registers/calendar',
+  create: '/registers',
+  detail: (id: number | string) => `/registers/${id}`,
+  update: (id: number | string) => `/registers/${id}`,
+  delete: (id: number | string) => `/registers/${id}`,
+  updateStatus: (id: number | string) => `/registers/${id}/status`,
+} as const;
+
 export const PO_ENDPOINTS = {
   list: '/purchase-orders',
   stats: '/purchase-orders/stats',

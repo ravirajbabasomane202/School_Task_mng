@@ -1,0 +1,198 @@
+import React, { useMemo, useState } from 'react';
+import type { RegisterCalendarEvent } from '../../types/register.types';
+
+interface RegisterCalendarProps {
+  events: RegisterCalendarEvent[];
+  onEventClick?: (event: RegisterCalendarEvent) => void;
+}
+
+type ViewMode = 'week' | 'month';
+
+const COLOR_DOT: Record<RegisterCalendarEvent['color'], string> = {
+  gray: 'bg-[#94A3B8]',
+  green: 'bg-[#22C55E]',
+  red: 'bg-[#EF4444]',
+};
+
+const COLOR_CHIP: Record<RegisterCalendarEvent['color'], string> = {
+  gray: 'bg-[#F1F5F9] text-[#475569] border-[#E2E8F0]',
+  green: 'bg-[#EDF9F1] text-[#2E7D4F] border-[#CFE8D8]',
+  red: 'bg-[#FFF1F1] text-[#C13F3A] border-[#F5D5D4]',
+};
+
+function startOfWeek(d: Date): Date {
+  const date = new Date(d);
+  const day = date.getDay();
+  date.setDate(date.getDate() - day);
+  date.setHours(0, 0, 0, 0);
+  return date;
+}
+
+function startOfMonthGrid(d: Date): Date {
+  const first = new Date(d.getFullYear(), d.getMonth(), 1);
+  return startOfWeek(first);
+}
+
+function toKey(d: Date): string {
+  return d.toISOString().split('T')[0];
+}
+
+function addDays(d: Date, n: number): Date {
+  const next = new Date(d);
+  next.setDate(next.getDate() + n);
+  return next;
+}
+
+function RegisterCalendar({ events, onEventClick }: RegisterCalendarProps) {
+  const [view, setView] = useState<ViewMode>('month');
+  const [anchor, setAnchor] = useState(() => new Date());
+
+  const eventsByDate = useMemo(() => {
+    const map = new Map<string, RegisterCalendarEvent[]>();
+    for (const event of events) {
+      const key = event.date;
+      if (!map.has(key)) map.set(key, []);
+      map.get(key)!.push(event);
+    }
+    return map;
+  }, [events]);
+
+  const days = useMemo(() => {
+    if (view === 'week') {
+      const start = startOfWeek(anchor);
+      return Array.from({ length: 7 }, (_, i) => addDays(start, i));
+    }
+    const start = startOfMonthGrid(anchor);
+    return Array.from({ length: 42 }, (_, i) => addDays(start, i));
+  }, [view, anchor]);
+
+  const headerLabel =
+    view === 'week'
+      ? `Week of ${days[0].toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: 'numeric' })}`
+      : anchor.toLocaleDateString('en-IN', { month: 'long', year: 'numeric' });
+
+  const goPrev = () => setAnchor((prev) => addDays(prev, view === 'week' ? -7 : -30));
+  const goNext = () => setAnchor((prev) => addDays(prev, view === 'week' ? 7 : 30));
+  const goToday = () => setAnchor(new Date());
+
+  const currentMonth = anchor.getMonth();
+  const todayKey = toKey(new Date());
+
+  return (
+    <div className="rounded-xl border border-[#EFF2F6] bg-white p-4">
+      <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
+        <div className="flex items-center gap-2">
+          <button
+            onClick={goPrev}
+            className="flex h-8 w-8 items-center justify-center rounded-lg border border-[#E4EAF2] text-[#5B6E8C] hover:bg-[#F8F9FC]"
+            type="button"
+            aria-label="Previous"
+          >
+            ‹
+          </button>
+          <span className="min-w-[160px] text-center text-sm font-semibold text-[#1E293B]">{headerLabel}</span>
+          <button
+            onClick={goNext}
+            className="flex h-8 w-8 items-center justify-center rounded-lg border border-[#E4EAF2] text-[#5B6E8C] hover:bg-[#F8F9FC]"
+            type="button"
+            aria-label="Next"
+          >
+            ›
+          </button>
+          <button
+            onClick={goToday}
+            className="ml-1 rounded-lg border border-[#E4EAF2] px-2.5 py-1 text-xs font-medium text-[#5B6E8C] hover:bg-[#F8F9FC]"
+            type="button"
+          >
+            Today
+          </button>
+        </div>
+
+        <div className="flex items-center gap-4">
+          <div className="flex items-center gap-3 text-xs text-[#5B6E8C]">
+            <span className="flex items-center gap-1.5">
+              <span className="h-2.5 w-2.5 rounded-full bg-[#94A3B8]" /> Idle
+            </span>
+            <span className="flex items-center gap-1.5">
+              <span className="h-2.5 w-2.5 rounded-full bg-[#22C55E]" /> OK
+            </span>
+            <span className="flex items-center gap-1.5">
+              <span className="h-2.5 w-2.5 rounded-full bg-[#EF4444]" /> Rejected
+            </span>
+          </div>
+          <div className="flex overflow-hidden rounded-lg border border-[#E4EAF2]">
+            {(['week', 'month'] as ViewMode[]).map((mode) => (
+              <button
+                key={mode}
+                onClick={() => setView(mode)}
+                type="button"
+                className={[
+                  'px-3 py-1.5 text-xs font-medium capitalize transition',
+                  view === mode ? 'bg-[#185FA5] text-white' : 'bg-white text-[#5B6E8C] hover:bg-[#F8F9FC]',
+                ].join(' ')}
+              >
+                {mode}
+              </button>
+            ))}
+          </div>
+        </div>
+      </div>
+
+      <div className="grid grid-cols-7 gap-px overflow-hidden rounded-lg border border-[#EFF2F6] bg-[#EFF2F6] text-xs">
+        {['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'].map((d) => (
+          <div key={d} className="bg-[#F8F9FC] px-2 py-2 text-center font-semibold text-[#8A99B0]">
+            {d}
+          </div>
+        ))}
+
+        {days.map((day) => {
+          const key = toKey(day);
+          const dayEvents = eventsByDate.get(key) ?? [];
+          const isCurrentMonth = view === 'week' || day.getMonth() === currentMonth;
+          const isToday = key === todayKey;
+
+          return (
+            <div
+              key={key}
+              className={[
+                'min-h-[92px] bg-white p-1.5 align-top',
+                isCurrentMonth ? '' : 'bg-[#FAFBFD] text-[#C3CCDA]',
+              ].join(' ')}
+            >
+              <div
+                className={[
+                  'mb-1 inline-flex h-5 w-5 items-center justify-center rounded-full text-[11px] font-medium',
+                  isToday ? 'bg-[#185FA5] text-white' : 'text-[#5B6E8C]',
+                ].join(' ')}
+              >
+                {day.getDate()}
+              </div>
+              <div className="space-y-1">
+                {dayEvents.slice(0, 3).map((event) => (
+                  <button
+                    key={event.id}
+                    type="button"
+                    onClick={() => onEventClick?.(event)}
+                    className={[
+                      'flex w-full items-center gap-1 truncate rounded border px-1.5 py-0.5 text-left text-[10px] font-medium transition hover:opacity-80',
+                      COLOR_CHIP[event.color],
+                    ].join(' ')}
+                    title={event.title}
+                  >
+                    <span className={['h-1.5 w-1.5 shrink-0 rounded-full', COLOR_DOT[event.color]].join(' ')} />
+                    <span className="truncate">{event.title}</span>
+                  </button>
+                ))}
+                {dayEvents.length > 3 ? (
+                  <div className="px-1 text-[10px] text-[#8A99B0]">+{dayEvents.length - 3} more</div>
+                ) : null}
+              </div>
+            </div>
+          );
+        })}
+      </div>
+    </div>
+  );
+}
+
+export default RegisterCalendar;

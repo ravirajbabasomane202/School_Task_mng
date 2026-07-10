@@ -133,6 +133,7 @@ def create_app(config_name=None):
     from app.routes.assets import assets_bp
     from app.routes.purchase_orders import po_bp
     from app.routes.escalations import escalations_bp
+    from app.routes.registers import registers_bp
 
     app.register_blueprint(auth_bp, url_prefix='/api/auth')
     app.register_blueprint(users_bp, url_prefix='/api/users')
@@ -151,6 +152,7 @@ def create_app(config_name=None):
     app.register_blueprint(assets_bp, url_prefix='/api/assets')
     app.register_blueprint(po_bp, url_prefix='/api/purchase-orders')
     app.register_blueprint(escalations_bp, url_prefix='/api/escalations')
+    app.register_blueprint(registers_bp, url_prefix='/api/registers')
 
     # ── APScheduler: auto-escalation every hour ──────────────────────────────
     # Guard against multiple gunicorn workers each starting their own scheduler.
