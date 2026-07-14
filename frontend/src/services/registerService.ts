@@ -4,7 +4,9 @@ import type {
   CreateRegisterPayload,
   Register,
   RegisterCalendarEvent,
+  RegisterCalendarResponse,
   RegisterFilters,
+  RegisterHead,
   RegisterStatus,
 } from '../types/register.types';
 
@@ -21,6 +23,20 @@ export async function getRegisters(filters?: RegisterFilters): Promise<Register[
 
 export async function getRegisterCalendarEvents(range?: { start?: string; end?: string }): Promise<RegisterCalendarEvent[]> {
   const res = await api.get<ApiResponse<RegisterCalendarEvent[]>>(REGISTER_ENDPOINTS.calendar, { params: range });
+  return res.data.data;
+}
+
+/** Calendar entries (dots only) for a single register — used by the Calendar popup. */
+export async function getRegisterCalendarFor(id: number, month?: string): Promise<RegisterCalendarResponse> {
+  const res = await api.get<ApiResponse<RegisterCalendarResponse>>(REGISTER_ENDPOINTS.calendarFor(id), {
+    params: month ? { month } : undefined,
+  });
+  return res.data.data;
+}
+
+/** Active users available to be selected as a Register's Head Name. */
+export async function getRegisterHeads(): Promise<RegisterHead[]> {
+  const res = await api.get<ApiResponse<RegisterHead[]>>(REGISTER_ENDPOINTS.heads);
   return res.data.data;
 }
 

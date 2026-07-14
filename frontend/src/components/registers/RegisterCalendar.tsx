@@ -1,5 +1,5 @@
 import React, { useMemo, useState } from 'react';
-import type { RegisterCalendarEvent } from '../../types/register.types';
+import type { RegisterCalendarEvent, RegisterDotColor } from '../../types/register.types';
 
 interface RegisterCalendarProps {
   events: RegisterCalendarEvent[];
@@ -8,16 +8,14 @@ interface RegisterCalendarProps {
 
 type ViewMode = 'week' | 'month';
 
-const COLOR_DOT: Record<RegisterCalendarEvent['color'], string> = {
+// Colored dots only (Section 5 of the spec) — Completed / Pending / Missed / Future.
+// No status text is ever rendered inside a calendar cell; a native title attribute
+// still gives an accessible/hover-only label.
+const COLOR_DOT: Record<RegisterDotColor, string> = {
   gray: 'bg-[#94A3B8]',
   green: 'bg-[#22C55E]',
+  yellow: 'bg-[#EAB308]',
   red: 'bg-[#EF4444]',
-};
-
-const COLOR_CHIP: Record<RegisterCalendarEvent['color'], string> = {
-  gray: 'bg-[#F1F5F9] text-[#475569] border-[#E2E8F0]',
-  green: 'bg-[#EDF9F1] text-[#2E7D4F] border-[#CFE8D8]',
-  red: 'bg-[#FFF1F1] text-[#C13F3A] border-[#F5D5D4]',
 };
 
 function startOfWeek(d: Date): Date {
@@ -111,13 +109,16 @@ function RegisterCalendar({ events, onEventClick }: RegisterCalendarProps) {
         <div className="flex items-center gap-4">
           <div className="flex items-center gap-3 text-xs text-[#5B6E8C]">
             <span className="flex items-center gap-1.5">
-              <span className="h-2.5 w-2.5 rounded-full bg-[#94A3B8]" /> Idle
+              <span className="h-2.5 w-2.5 rounded-full bg-[#22C55E]" /> Completed
             </span>
             <span className="flex items-center gap-1.5">
-              <span className="h-2.5 w-2.5 rounded-full bg-[#22C55E]" /> OK
+              <span className="h-2.5 w-2.5 rounded-full bg-[#EAB308]" /> Pending
             </span>
             <span className="flex items-center gap-1.5">
-              <span className="h-2.5 w-2.5 rounded-full bg-[#EF4444]" /> Rejected
+              <span className="h-2.5 w-2.5 rounded-full bg-[#EF4444]" /> Missed
+            </span>
+            <span className="flex items-center gap-1.5">
+              <span className="h-2.5 w-2.5 rounded-full bg-[#94A3B8]" /> Future
             </span>
           </div>
           <div className="flex overflow-hidden rounded-lg border border-[#E4EAF2]">
@@ -167,25 +168,19 @@ function RegisterCalendar({ events, onEventClick }: RegisterCalendarProps) {
               >
                 {day.getDate()}
               </div>
-              <div className="space-y-1">
-                {dayEvents.slice(0, 3).map((event) => (
+              <div className="flex flex-wrap justify-center gap-1 px-1">
+                {dayEvents.map((event) => (
                   <button
                     key={event.id}
                     type="button"
                     onClick={() => onEventClick?.(event)}
-                    className={[
-                      'flex w-full items-center gap-1 truncate rounded border px-1.5 py-0.5 text-left text-[10px] font-medium transition hover:opacity-80',
-                      COLOR_CHIP[event.color],
-                    ].join(' ')}
+                    className="flex h-3 w-3 items-center justify-center rounded-full transition hover:scale-125"
                     title={event.title}
+                    aria-label={event.title}
                   >
-                    <span className={['h-1.5 w-1.5 shrink-0 rounded-full', COLOR_DOT[event.color]].join(' ')} />
-                    <span className="truncate">{event.title}</span>
+                    <span className={['h-2.5 w-2.5 rounded-full', COLOR_DOT[event.dot_color]].join(' ')} />
                   </button>
                 ))}
-                {dayEvents.length > 3 ? (
-                  <div className="px-1 text-[10px] text-[#8A99B0]">+{dayEvents.length - 3} more</div>
-                ) : null}
               </div>
             </div>
           );

@@ -1,17 +1,17 @@
 import React, { useState } from 'react';
-import { useMutation, useQueryClient } from '@tanstack/react-query';
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import toast from 'react-hot-toast';
 import Button from '../../components/common/Button';
 import Input from '../../components/common/Input';
-import { createRegister } from '../../services/registerService';
+import { createRegister, getRegisterHeads } from '../../services/registerService';
 import { REGISTER_CYCLES, REGISTER_PRIORITIES } from '../../types/register.types';
 import type { CreateRegisterPayload, RegisterCycle, RegisterPriority } from '../../types/register.types';
 
 const EMPTY_FORM: CreateRegisterPayload = {
   name: '',
   register_no: '',
-  head_name: '',
-  cycle: 'MONTHLY',
+  head_id: '',
+  checking_cycle: 'MONTHLY',
   priority: 'MEDIUM',
   start_date: '',
 };
@@ -20,6 +20,12 @@ function AddRegister() {
   const qc = useQueryClient();
   const [form, setForm] = useState<CreateRegisterPayload>(EMPTY_FORM);
   const [errors, setErrors] = useState<Record<string, string>>({});
+
+  // Load only active Head Names from the API for the dropdown (Section 1 of the spec).
+  const { data: heads = [], isLoading: headsLoading } = useQuery({
+    queryKey: ['register-heads'],
+    queryFn: getRegisterHeads,
+  });
 
   const createMutation = useMutation({
     mutationFn: createRegister,
@@ -42,8 +48,8 @@ function AddRegister() {
     const nextErrors: Record<string, string> = {};
     if (!form.name.trim()) nextErrors.name = 'Register Name is required';
     if (!form.register_no.trim()) nextErrors.register_no = 'Register No. is required';
-    if (!form.head_name.trim()) nextErrors.head_name = 'Head Name is required';
-    if (!form.cycle) nextErrors.cycle = 'Cycle is required';
+    if (!form.head_id) nextErrors.head_id = 'Head Name is required';
+    if (!form.checking_cycle) nextErrors.checking_cycle = 'Checking Cycle is required';
     if (!form.priority) nextErrors.priority = 'Priority is required';
     if (!form.start_date) nextErrors.start_date = 'Start Date is required';
     setErrors(nextErrors);
@@ -88,20 +94,31 @@ function AddRegister() {
           error={errors.register_no}
         />
 
-        <Input
-          label="Head Name *"
-          placeholder="Person responsible for this register"
-          value={form.head_name}
-          onChange={(e) => setForm({ ...form, head_name: e.target.value })}
-          error={errors.head_name}
-        />
+        <label className="flex flex-col gap-1.5">
+          <span className="text-[12px] font-medium text-[#36506C]">Head Name *</span>
+          <select
+            value={form.head_id}
+            onChange={(e) => setForm({ ...form, head_id: e.target.value ? Number(e.target.value) : '' })}
+            disabled={headsLoading}
+            className="min-h-[38px] rounded-[10px] border-[0.5px] border-solid border-[#DCE2EA] bg-[#F8F9FC] px-3 text-sm text-[#1E293B] outline-none focus:border-[#185FA5] focus:ring-4 focus:ring-[#185FA5]/10"
+          >
+            <option value="">{headsLoading ? 'Loading…' : 'Select the person responsible'}</option>
+            {heads.map((h) => (
+              <option key={h.id} value={h.id}>
+                {h.name}
+                {h.department_name ? ` (${h.department_name})` : ''}
+              </option>
+            ))}
+          </select>
+          {errors.head_id ? <span className="text-[11px] text-[#C13F3A]">{errors.head_id}</span> : null}
+        </label>
 
         <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
           <label className="flex flex-col gap-1.5">
-            <span className="text-[12px] font-medium text-[#36506C]">Cycle *</span>
+            <span className="text-[12px] font-medium text-[#36506C]">Checking Cycle *</span>
             <select
-              value={form.cycle}
-              onChange={(e) => setForm({ ...form, cycle: e.target.value as RegisterCycle })}
+              value={form.checking_cycle}
+              onChange={(e) => setForm({ ...form, checking_cycle: e.target.value as RegisterCycle })}
               className="min-h-[38px] rounded-[10px] border-[0.5px] border-solid border-[#DCE2EA] bg-[#F8F9FC] px-3 text-sm text-[#1E293B] outline-none focus:border-[#185FA5] focus:ring-4 focus:ring-[#185FA5]/10"
             >
               {REGISTER_CYCLES.map((c) => (
@@ -110,7 +127,7 @@ function AddRegister() {
                 </option>
               ))}
             </select>
-            {errors.cycle ? <span className="text-[11px] text-[#C13F3A]">{errors.cycle}</span> : null}
+            {errors.checking_cycle ? <span className="text-[11px] text-[#C13F3A]">{errors.checking_cycle}</span> : null}
           </label>
 
           <label className="flex flex-col gap-1.5">

@@ -86,6 +86,8 @@ export const ASSET_ENDPOINTS = {
 export const REGISTER_ENDPOINTS = {
   list: '/registers',
   calendar: '/registers/calendar',
+  calendarFor: (id: number | string) => `/registers/${id}/calendar`,
+  heads: '/registers/heads',
   create: '/registers',
   detail: (id: number | string) => `/registers/${id}`,
   update: (id: number | string) => `/registers/${id}`,

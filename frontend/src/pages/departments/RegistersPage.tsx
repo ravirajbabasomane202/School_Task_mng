@@ -83,7 +83,7 @@ function RegistersPage() {
             <table className="w-full text-sm">
               <thead className="border-b border-[#EFF2F6] bg-[#F8F9FC]">
                 <tr>
-                  {['Register Name', 'Register No.', 'Head Name', 'Cycle', 'Priority', 'Start Date', 'Status', 'Next Due Date'].map(
+                  {['Register Name', 'Register No.', 'Head Name', 'Checking Cycle', 'Priority', 'Start Date', 'Status', 'Next Due Date'].map(
                     (h) => (
                       <th key={h} className="whitespace-nowrap px-4 py-3 text-left text-xs font-semibold text-[#8A99B0]">
                         {h}
@@ -106,7 +106,7 @@ function RegistersPage() {
                     </td>
                     <td className="px-4 py-3 text-[#5B6E8C]">{r.register_no}</td>
                     <td className="px-4 py-3 text-[#5B6E8C]">{r.head_name}</td>
-                    <td className="px-4 py-3 text-[#5B6E8C]">{CYCLE_LABEL[r.cycle]}</td>
+                    <td className="px-4 py-3 text-[#5B6E8C]">{CYCLE_LABEL[r.checking_cycle]}</td>
                     <td className="px-4 py-3">
                       <Badge variant={PRIORITY_BADGE[r.priority]}>{r.priority}</Badge>
                     </td>

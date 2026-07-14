@@ -15,7 +15,7 @@ const STATUS_BADGE: Record<Register['status'], 'gray' | 'green' | 'red'> = {
   REJECTED: 'red',
 };
 
-const CYCLE_LABEL: Record<Register['cycle'], string> = {
+const CYCLE_LABEL: Record<Register['checking_cycle'], string> = {
   DAILY: 'Daily',
   WEEKLY: 'Weekly',
   MONTHLY: 'Monthly',
@@ -41,7 +41,7 @@ function RegisterDetailsModal({ register, onClose }: RegisterDetailsModalProps) 
           <Row label="Register Name" value={register.name} />
           <Row label="Register No." value={register.register_no} />
           <Row label="Head Name" value={register.head_name} />
-          <Row label="Cycle" value={CYCLE_LABEL[register.cycle]} />
+          <Row label="Checking Cycle" value={CYCLE_LABEL[register.checking_cycle]} />
           <Row label="Priority" value={register.priority} />
           <Row label="Start Date" value={formatDate(register.start_date)} />
           <Row label="Next Due Date" value={formatDate(register.next_due_date)} />

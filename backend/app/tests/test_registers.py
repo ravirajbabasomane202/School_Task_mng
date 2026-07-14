@@ -190,3 +190,55 @@ class TestUpdateStatus:
         body = resp.get_json()
         assert body['data']['status'] == 'OK'
         assert body['data']['next_due_date'] != old_due_date
+
+
+class TestRegisterHeads:
+    def test_requires_auth(self, client):
+        resp = client.get('/api/registers/heads')
+        assert resp.status_code == 401
+
+    def test_returns_active_department_head_users(self, client, auth_headers):
+        resp = client.get('/api/registers/heads', headers=auth_headers['chairman'])
+        assert resp.status_code == 200
+        body = resp.get_json()
+        assert body['success'] is True
+        # Every seeded department-head-role test user (hr, finance, it, purchase, regular) should appear.
+        names = {u['name'] for u in body['data']}
+        assert 'Hr Test' in names
+
+
+class TestCreateRegisterWithHeadId:
+    def test_creates_register_using_head_id(self, client, auth_headers):
+        from app.models.user import User
+
+        head = User.query.filter_by(email='hr-test@school.test').first()
+        resp = client.post(
+            '/api/registers',
+            json=_payload(head_id=head.id, head_name=None),
+            headers=auth_headers['chairman'],
+        )
+        assert resp.status_code == 201
+        body = resp.get_json()
+        assert body['data']['head_id'] == head.id
+        assert body['data']['head_name'] == head.name
+        assert body['data']['checking_cycle'] == body['data']['cycle']
+
+    def test_rejects_inactive_or_missing_head_id(self, client, auth_headers):
+        resp = client.post(
+            '/api/registers',
+            json=_payload(head_id=999999, head_name=None),
+            headers=auth_headers['chairman'],
+        )
+        assert resp.status_code == 400
+
+
+class TestRegisterCalendarPopup:
+    def test_returns_entries_for_single_register(self, client, auth_headers):
+        created = client.post('/api/registers', json=_payload(), headers=auth_headers['chairman']).get_json()
+        register_id = created['data']['id']
+
+        resp = client.get(f'/api/registers/{register_id}/calendar', headers=auth_headers['chairman'])
+        assert resp.status_code == 200
+        body = resp.get_json()
+        assert body['data']['register']['id'] == register_id
+        assert isinstance(body['data']['entries'], list)

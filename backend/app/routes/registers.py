@@ -1,11 +1,11 @@
-from datetime import datetime, date
+from datetime import datetime, date, timedelta
 
 from flask import Blueprint, request
 from flask_jwt_extended import jwt_required, get_jwt_identity
 
 from app.extensions import db
 from app.models.register import Register, CYCLES, PRIORITIES, STATUSES, calculate_next_due_date
-from app.models.user import User
+from app.models.user import User, DEPARTMENT_HEAD_ROLES
 from app.utils.response import success, error
 from app.utils.decorators import roles_required
 
@@ -13,7 +13,9 @@ registers_bp = Blueprint('registers', __name__)
 
 REGISTER_MANAGER_ROLES = ('CHAIRMAN',)
 
-REQUIRED_FIELDS = ['name', 'register_no', 'head_name', 'cycle', 'priority', 'start_date']
+# `head_name` is accepted as a legacy fallback, but `head_id` is the preferred field
+# going forward — the register stores the selected user's ID, not free text.
+REQUIRED_FIELDS = ['name', 'register_no', 'cycle', 'priority', 'start_date']
 
 
 def _parse_date(value):
@@ -32,6 +34,32 @@ def _parse_date(value):
         return None
 
 
+def _resolve_head(data, partial=False):
+    """Resolve the selected Head (User) from `head_id`, falling back to legacy
+    free-text `head_name` for backward compatibility.
+
+    Returns (head_user_or_None, head_name_text, error_message_or_None).
+    """
+    if 'head_id' in data and data['head_id'] not in (None, ''):
+        try:
+            head_id = int(data['head_id'])
+        except (TypeError, ValueError):
+            return None, None, 'head_id must be a valid Head ID'
+        head_user = db.session.get(User, head_id)
+        if not head_user or not head_user.is_active:
+            return None, None, 'Selected Head Name is not a valid active user'
+        return head_user, head_user.name, None
+
+    if 'head_name' in data and data['head_name']:
+        # Legacy fallback: plain text, no linked user.
+        return None, str(data['head_name']).strip(), None
+
+    if not partial:
+        return None, None, 'head_id is required'
+
+    return None, None, None
+
+
 def _validate_payload(data, partial=False):
     """Validate register fields. Returns an error message string, or None if valid."""
     fields = REQUIRED_FIELDS if not partial else [f for f in REQUIRED_FIELDS if f in data]
@@ -39,8 +67,11 @@ def _validate_payload(data, partial=False):
         if data.get(field) in (None, ''):
             return f'{field} is required'
 
+    if not partial and 'head_id' not in data and 'head_name' not in data:
+        return 'head_id is required'
+
     if 'cycle' in data and data['cycle'] and data['cycle'].upper() not in CYCLES:
-        return f"cycle must be one of {', '.join(CYCLES)}"
+        return f"checking_cycle must be one of {', '.join(CYCLES)}"
 
     if 'priority' in data and data['priority'] and data['priority'].upper() not in PRIORITIES:
         return f"priority must be one of {', '.join(PRIORITIES)}"
@@ -100,22 +131,23 @@ def calendar_events():
 
     registers = query.order_by(Register.next_due_date.asc()).all()
 
+    today = date.today()
     events = []
     for r in registers:
-        is_future_or_pending = r.next_due_date >= date.today()
-        if r.status == 'OK':
-            color = 'green'
-        elif r.status == 'REJECTED':
-            color = 'red'
-        else:
-            color = 'gray'  # IDLE - future or not completed
+        is_future_or_pending = r.next_due_date >= today
+        computed_status = r.computed_status(today)
+        # `color` kept as a 3-value field for backward compatibility with older
+        # clients; `dot_color` carries the full 4-state Completed/Pending/Failed/Upcoming.
+        color = 'green' if computed_status == 'COMPLETED' else ('red' if computed_status == 'FAILED' else 'gray')
 
         events.append({
             'id': r.id,
             'title': f'{r.name} ({r.register_no})',
             'date': r.next_due_date.isoformat(),
             'status': r.status,
+            'computed_status': computed_status,
             'color': color,
+            'dot_color': r.dot_color(today),
             'is_future_or_pending': is_future_or_pending,
             'register': r.to_dict(),
         })
@@ -136,10 +168,17 @@ def get_register(register_id: int):
 @roles_required(*REGISTER_MANAGER_ROLES)
 def create_register():
     data = request.get_json() or {}
+    # Accept `checking_cycle` as the primary field name, `cycle` as legacy alias.
+    if 'checking_cycle' in data and 'cycle' not in data:
+        data['cycle'] = data['checking_cycle']
 
     validation_error = _validate_payload(data)
     if validation_error:
         return error(validation_error, 400)
+
+    head_user, head_name, head_error = _resolve_head(data)
+    if head_error:
+        return error(head_error, 400)
 
     register_no = str(data['register_no']).strip()
     if Register.query.filter_by(register_no=register_no).first():
@@ -153,7 +192,8 @@ def create_register():
     register = Register(
         name=data['name'].strip(),
         register_no=register_no,
-        head_name=data['head_name'].strip(),
+        head_id=head_user.id if head_user else None,
+        head_name=head_name,
         cycle=cycle,
         priority=data['priority'].upper(),
         status=data.get('status', 'IDLE').upper() if data.get('status') else 'IDLE',
@@ -174,10 +214,23 @@ def update_register(register_id: int):
         return error('Register not found', 404)
 
     data = request.get_json() or {}
+    if 'checking_cycle' in data and 'cycle' not in data:
+        data['cycle'] = data['checking_cycle']
 
     validation_error = _validate_payload(data, partial=True)
     if validation_error:
         return error(validation_error, 400)
+
+    if 'head_id' in data or 'head_name' in data:
+        head_user, head_name, head_error = _resolve_head(data, partial=True)
+        if head_error:
+            return error(head_error, 400)
+        if head_user:
+            register.head_id = head_user.id
+            register.head_name = head_name
+        elif head_name:
+            register.head_id = None
+            register.head_name = head_name
 
     if 'register_no' in data:
         new_register_no = str(data['register_no']).strip()
@@ -189,8 +242,6 @@ def update_register(register_id: int):
 
     if 'name' in data:
         register.name = data['name'].strip()
-    if 'head_name' in data:
-        register.head_name = data['head_name'].strip()
     if 'cycle' in data and data['cycle']:
         register.cycle = data['cycle'].upper()
     if 'priority' in data and data['priority']:
@@ -243,7 +294,76 @@ def update_status(register_id: int):
     # each completed update (i.e. whenever the status moves out of IDLE).
     if new_status in ('OK', 'REJECTED'):
         base_date = register.next_due_date or register.start_date or date.today()
+        if new_status == 'OK':
+            register.last_completed_date = base_date
         register.next_due_date = calculate_next_due_date(base_date, register.cycle)
 
     db.session.commit()
     return success(register.to_dict(), 'Register status updated')
+
+
+@registers_bp.route('/heads', methods=['GET'])
+@jwt_required()
+def list_register_heads():
+    """Active users eligible to be selected as a Register's Head Name."""
+    query = User.query.filter(
+        User.is_active.is_(True),
+        User.role.in_(DEPARTMENT_HEAD_ROLES),
+    )
+    users = query.order_by(User.name).all()
+    return success([
+        {
+            'id': u.id,
+            'name': u.name,
+            'role': u.role,
+            'department_id': u.department_id,
+            'department_name': u.department.name if u.department else None,
+        }
+        for u in users
+    ])
+
+
+@registers_bp.route('/<int:register_id>/calendar', methods=['GET'])
+@jwt_required()
+def register_calendar(register_id: int):
+    """Calendar dots for a single Register, for the small popup view.
+
+    Only the register's own scheduled due date (per its Checking Cycle) is
+    surfaced with a computed status; every other day in the visible range is
+    rendered blank on the frontend.
+    """
+    register = db.session.get(Register, register_id)
+    if not register:
+        return error('Register not found', 404)
+
+    today = date.today()
+    month_str = request.args.get('month')  # 'YYYY-MM', defaults to the due date's month
+    if month_str:
+        try:
+            year, month = (int(part) for part in month_str.split('-'))
+            anchor = date(year, month, 1)
+        except (ValueError, TypeError):
+            return error('month must be in YYYY-MM format', 400)
+    else:
+        anchor = register.next_due_date.replace(day=1) if register.next_due_date else today.replace(day=1)
+
+    entries = []
+    # Always surface the current cycle's due date if it's the one being viewed.
+    if register.next_due_date and register.next_due_date.year == anchor.year and register.next_due_date.month == anchor.month:
+        entries.append({
+            'date': register.next_due_date.isoformat(),
+            'status': register.computed_status(today),
+            'dot_color': register.dot_color(today),
+        })
+    if register.last_completed_date and register.last_completed_date.year == anchor.year and register.last_completed_date.month == anchor.month:
+        entries.append({
+            'date': register.last_completed_date.isoformat(),
+            'status': 'COMPLETED',
+            'dot_color': 'green',
+        })
+
+    return success({
+        'register': register.to_dict(),
+        'month': anchor.strftime('%Y-%m'),
+        'entries': entries,
+    })
