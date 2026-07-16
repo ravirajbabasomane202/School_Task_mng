@@ -5,18 +5,15 @@ import Button from '../../components/common/Button';
 import Modal from '../../components/common/Modal';
 import Badge from '../../components/common/Badge';
 import Input from '../../components/common/Input';
-import RegisterCalendar from '../../components/registers/RegisterCalendar';
 import RegisterCalendarPopup from '../../components/registers/RegisterCalendarPopup';
 import RegisterDetailsModal from '../../components/registers/RegisterDetailsModal';
-import { formatDate } from '../../utils/dateUtils';
+import { formatDate, todayISO } from '../../utils/dateUtils';
 import {
   deleteRegister,
-  getRegisterCalendarEvents,
   getRegisterHeads,
   getRegisters,
   updateOccurrenceStatus,
   updateRegister,
-  updateRegisterStatus,
 } from '../../services/registerService';
 import {
   REGISTER_CYCLES,
@@ -69,16 +66,15 @@ function RegisterMonitoring() {
     start_date: string;
   } | null>(null);
 
-  const [statusTarget, setStatusTarget] = useState<Register | null>(null);
-  const [pendingStatus, setPendingStatus] = useState<RegisterStatus>('OK');
-  // "Edit This Occurrence" — separate from statusTarget ("Edit Entire Series")
-  // so that clicking one calendar dot can never resolve to a series-wide update.
+  // Registers are cyclic — there is no series-wide "status" worth editing
+  // separately. The only thing that is ever updated is a single dated
+  // occurrence (by default: today's), never "all rows" of the recurring
+  // series. `occurrenceTarget` is scoped to exactly one (register, date) pair.
   const [occurrenceTarget, setOccurrenceTarget] = useState<RegisterCalendarEvent | null>(null);
   const [pendingOccurrenceStatus, setPendingOccurrenceStatus] = useState<RegisterStatus>('OK');
   const [deleteTarget, setDeleteTarget] = useState<Register | null>(null);
   const [detailsRegister, setDetailsRegister] = useState<Register | null>(null);
   const [calendarRegister, setCalendarRegister] = useState<Register | null>(null);
-  const [calendarRange, setCalendarRange] = useState<{ start: string; end: string } | null>(null);
 
   const { data: registers = [], isLoading } = useQuery({
     queryKey: ['registers', search, cycleFilter, priorityFilter, statusFilter],
@@ -95,14 +91,6 @@ function RegisterMonitoring() {
   const { data: heads = [] } = useQuery({
     queryKey: ['register-heads'],
     queryFn: getRegisterHeads,
-  });
-
-  // Full calendar of every register's occurrences, shown directly on this
-  // page alongside the List (no List/Calendar toggle — Section 3 of the spec).
-  const { data: calendarEvents = [] } = useQuery({
-    queryKey: ['register-calendar', 'overview', 'chairman', calendarRange?.start, calendarRange?.end],
-    queryFn: () => getRegisterCalendarEvents(calendarRange ?? undefined),
-    enabled: !!calendarRange,
   });
 
   const updateMutation = useMutation({
@@ -125,21 +113,7 @@ function RegisterMonitoring() {
     },
   });
 
-  const statusMutation = useMutation({
-    mutationFn: ({ id, status }: { id: number; status: RegisterStatus }) => updateRegisterStatus(id, status),
-    onSuccess: (_updated, variables) => {
-      // Apply the change only to the selected registry record: refresh the
-      // list (single combined query) plus the calendar for just this record.
-      qc.invalidateQueries({ queryKey: ['registers'] });
-      qc.invalidateQueries({ queryKey: ['register-calendar', 'overview'] });
-      qc.invalidateQueries({ queryKey: ['register-calendar', 'single', variables.id] });
-      toast.success('Register status updated');
-      setStatusTarget(null);
-    },
-    onError: () => toast.error('Failed to update status'),
-  });
-
-  // Edit This Occurrence: keyed by (register id, occurrence date) — the
+  // Update Status: keyed by (register id, occurrence date) — the
   // request can only ever resolve to one RegisterOccurrence row server-side.
   const occurrenceMutation = useMutation({
     mutationFn: ({ id, occurrenceDate, status }: { id: number; occurrenceDate: string; status: RegisterStatus }) =>
@@ -188,18 +162,26 @@ function RegisterMonitoring() {
     updateMutation.mutate({ id: editingRegister.id, data: editForm });
   };
 
-  const openStatusModal = (register: Register) => {
-    setStatusTarget(register);
-    setPendingStatus(register.status);
-  };
-
-  // Clicking a calendar dot edits ONLY that one occurrence (the date the
-  // user actually clicked), never the whole recurring series. Editing the
-  // entire series is still available from the registry list's "Update
-  // Status" action (openStatusModal), which is explicitly series-scoped.
-  const handleCalendarEventClick = (event: RegisterCalendarEvent) => {
-    setOccurrenceTarget(event);
-    setPendingOccurrenceStatus(event.status);
+  // "Update Status" always resolves to exactly ONE occurrence: today's.
+  // Registers are cyclic, so there is nothing meaningful about updating
+  // "the whole series" — only the current day's entry ever needs a status.
+  const openTodayStatusModal = (register: Register) => {
+    const today = todayISO();
+    setOccurrenceTarget({
+      id: `${register.id}:${today}`,
+      register_id: register.id,
+      occurrence_id: null,
+      occurrence_date: today,
+      title: `${register.name} (${register.register_no})`,
+      date: today,
+      status: register.status,
+      computed_status: register.computed_status,
+      color: 'gray',
+      dot_color: register.dot_color,
+      is_future_or_pending: true,
+      register,
+    });
+    setPendingOccurrenceStatus(register.status === 'IDLE' ? 'OK' : register.status);
   };
 
   const emptyState = useMemo(() => !isLoading && registers.length === 0, [isLoading, registers]);
@@ -275,7 +257,6 @@ function RegisterMonitoring() {
                   'Priority',
                   'Start Date',
                   'Status',
-                  'Next Due Date',
                   'Actions',
                 ].map((h) => (
                   <th key={h} className="whitespace-nowrap px-4 py-3 text-left text-xs font-semibold text-[#8A99B0]">
@@ -306,19 +287,18 @@ function RegisterMonitoring() {
                   <td className="px-4 py-3">
                     <Badge variant={STATUS_BADGE[r.status]}>{r.status}</Badge>
                   </td>
-                  <td className="px-4 py-3 text-[#5B6E8C]">{formatDate(r.next_due_date)}</td>
                   <td className="px-4 py-3">
                     <div className="flex flex-wrap gap-2">
                       <button onClick={() => openEdit(r)} className="text-xs text-blue-600 hover:underline" type="button">
                         Edit
                       </button>
                       <button
-                        onClick={() => openStatusModal(r)}
+                        onClick={() => openTodayStatusModal(r)}
                         className="text-xs text-emerald-600 hover:underline"
                         type="button"
-                        title="Updates the whole recurring series' baseline status"
+                        title="Updates only today's entry for this cyclic register"
                       >
-                        Edit Entire Series
+                        Update Status
                       </button>
                       <button
                         onClick={() => setCalendarRegister(r)}
@@ -343,13 +323,9 @@ function RegisterMonitoring() {
         )}
       </div>
 
-      {/* Full calendar of every register, shown directly (no List/Calendar
-          toggle — Section 3). Clicking an event opens the same Update Status
-          popup used by the list above, scoped to that one record. */}
-      <div>
-        <h2 className="mb-3 text-sm font-semibold text-[#1E293B]">Calendar</h2>
-        <RegisterCalendar events={calendarEvents} onEventClick={handleCalendarEventClick} onRangeChange={setCalendarRange} />
-      </div>
+      {/* The below-the-list calendar has been removed — the per-register
+          popup calendar (opened via "Calendar" above) is the single place
+          the Chairman views AND updates register status day-by-day. */}
 
       {/* Edit modal */}
       <Modal
@@ -436,53 +412,18 @@ function RegisterMonitoring() {
         ) : null}
       </Modal>
 
-      {/* Edit Entire Series modal — updates the register's own shared status/next-due-date. */}
-      <Modal isOpen={!!statusTarget} onClose={() => setStatusTarget(null)} title="Edit Entire Series">
-        {statusTarget ? (
-          <div className="space-y-4">
-            <p className="text-sm text-[#5B6E8C]">
-              This updates the whole recurring series for{' '}
-              <span className="font-semibold text-[#1E293B]">{statusTarget.name}</span> ({statusTarget.register_no}), not a single
-              occurrence.
-            </p>
-            <label className="flex flex-col gap-1.5">
-              <span className="text-[12px] font-medium text-[#36506C]">Status</span>
-              <select
-                value={pendingStatus}
-                onChange={(e) => setPendingStatus(e.target.value as RegisterStatus)}
-                className="min-h-[38px] rounded-[10px] border-[0.5px] border-solid border-[#DCE2EA] bg-[#F8F9FC] px-3 text-sm"
-              >
-                {REGISTER_STATUSES.map((s) => (
-                  <option key={s.value} value={s.value}>
-                    {s.label}
-                  </option>
-                ))}
-              </select>
-            </label>
-            <div className="flex justify-end gap-3 pt-2">
-              <Button variant="ghost" type="button" onClick={() => setStatusTarget(null)}>
-                Cancel
-              </Button>
-              <Button
-                type="button"
-                loading={statusMutation.isPending}
-                onClick={() => statusMutation.mutate({ id: statusTarget.id, status: pendingStatus })}
-              >
-                Update
-              </Button>
-            </div>
-          </div>
-        ) : null}
-      </Modal>
-
-      {/* Edit This Occurrence modal — scoped to exactly one date; never touches any other occurrence. */}
-      <Modal isOpen={!!occurrenceTarget} onClose={() => setOccurrenceTarget(null)} title="Update Status — This Occurrence">
+      {/* Update Status modal — scoped to exactly one date (today, unless opened
+          from the calendar popup). Registers are cyclic, so this is the ONLY
+          status-update action in the whole page: it never touches any other
+          date's occurrence and there is no separate "whole series" update. */}
+      <Modal isOpen={!!occurrenceTarget} onClose={() => setOccurrenceTarget(null)} title="Update Status">
         {occurrenceTarget ? (
           <div className="space-y-4">
             <p className="text-sm text-[#5B6E8C]">
-              Updating only the <span className="font-semibold text-[#1E293B]">{formatDate(occurrenceTarget.date)}</span> occurrence
+              Updating only the <span className="font-semibold text-[#1E293B]">{formatDate(occurrenceTarget.date)}</span>{' '}
+              {occurrenceTarget.date === todayISO() ? '(today’s) ' : ''}entry
               of <span className="font-semibold text-[#1E293B]">{occurrenceTarget.register.name}</span> (
-              {occurrenceTarget.register.register_no}). Other occurrences of this recurring register are not affected.
+              {occurrenceTarget.register.register_no}). Other dates of this recurring register are not affected.
             </p>
             <label className="flex flex-col gap-1.5">
               <span className="text-[12px] font-medium text-[#36506C]">Status</span>

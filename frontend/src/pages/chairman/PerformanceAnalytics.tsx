@@ -2,6 +2,7 @@ import { useMemo } from 'react';
 import { useQuery } from '@tanstack/react-query';
 
 import PerformanceChart from '../../components/charts/PerformanceChart';
+import RegistryPerformancePanel from '../../components/registers/RegistryPerformancePanel';
 import { ROLE_LABELS } from '../../constants/roles';
 import { getMonthlyComparison, getStaffPerformance } from '../../services/dashboardService';
 
@@ -214,6 +215,8 @@ function PerformanceAnalytics() {
           </table>
         </div>
       </div>
+
+      <RegistryPerformancePanel />
     </div>
   );
 }
