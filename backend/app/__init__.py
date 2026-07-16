@@ -1,6 +1,6 @@
 import os
 import re
-from flask import Flask, request, send_from_directory
+from flask import Flask, request, send_from_directory, jsonify
 from config import config
 from app.extensions import db, migrate, jwt, socketio, bcrypt, scheduler
 
@@ -74,6 +74,26 @@ def create_app(config_name=None):
     db.init_app(app)
     migrate.init_app(app, db)
     jwt.init_app(app)
+
+    def _jwt_error_response(message, status=401):
+        return jsonify({'success': False, 'message': message, 'data': None}), status
+
+    @jwt.unauthorized_loader
+    def unauthorized_loader(reason):
+        return _jwt_error_response(reason or 'Authorization token is required')
+
+    @jwt.invalid_token_loader
+    def invalid_token_loader(reason):
+        return _jwt_error_response(reason or 'Invalid or malformed token')
+
+    @jwt.expired_token_loader
+    def expired_token_loader(jwt_header, jwt_payload):
+        return _jwt_error_response('Token has expired')
+
+    @jwt.revoked_token_loader
+    def revoked_token_loader(jwt_header, jwt_payload):
+        return _jwt_error_response('Token has been revoked')
+
     bcrypt.init_app(app)
     async_mode = os.environ.get('SOCKETIO_ASYNC_MODE', 'threading')
     allowed_frontend_origins, allowed_origin_patterns = _get_allowed_frontend_origins(app)

@@ -28,102 +28,96 @@ const CYCLE_LABEL: Record<RegisterCycle, string> = {
   YEARLY: 'Yearly',
 };
 
-type ViewTab = 'table' | 'calendar';
-
+/**
+ * View-only Registers page for non-Chairman roles.
+ *
+ * The List/Calendar toggle has been removed — both the List View and the
+ * Calendar (in the same style as the Chairman's calendar) are shown
+ * directly on the page. This view is strictly read-only: there are no
+ * edit/update/delete affordances anywhere here, and clicking a calendar
+ * event opens a read-only details popup rather than the Update Status
+ * dialog (that dialog is Chairman-only, see RegisterMonitoring).
+ */
 function RegistersPage() {
-  const [tab, setTab] = useState<ViewTab>('table');
   const [detailsRegister, setDetailsRegister] = useState<Register | null>(null);
+  const [calendarRange, setCalendarRange] = useState<{ start: string; end: string } | null>(null);
 
+  // Scoped to the current user's assigned/available registers by the backend.
   const { data: registers = [], isLoading } = useQuery({
     queryKey: ['registers', 'view-only'],
     queryFn: () => getRegisters(),
   });
 
   const { data: calendarEvents = [] } = useQuery({
-    queryKey: ['register-calendar', 'view-only'],
-    queryFn: () => getRegisterCalendarEvents(),
-    enabled: tab === 'calendar',
+    queryKey: ['register-calendar', 'overview', 'view-only', calendarRange?.start, calendarRange?.end],
+    queryFn: () => getRegisterCalendarEvents(calendarRange ?? undefined),
+    enabled: !!calendarRange,
   });
 
   const handleEventClick = (event: RegisterCalendarEvent) => {
+    // Read-only for every non-Chairman role: always the details popup.
     setDetailsRegister(event.register);
   };
 
   return (
     <div className="space-y-6 p-6">
-      <div className="flex items-center justify-between">
-        <div>
-          <h1 className="text-xl font-semibold text-[#1E293B]">Registers</h1>
-          <p className="mt-1 text-sm text-[#5B6E8C]">View-only access to all registers and their schedules</p>
-        </div>
-        <div className="flex overflow-hidden rounded-lg border border-[#E4EAF2]">
-          {(['table', 'calendar'] as ViewTab[]).map((t) => (
-            <button
-              key={t}
-              type="button"
-              onClick={() => setTab(t)}
-              className={[
-                'px-3.5 py-1.5 text-xs font-medium capitalize transition',
-                tab === t ? 'bg-[#185FA5] text-white' : 'bg-white text-[#5B6E8C] hover:bg-[#F8F9FC]',
-              ].join(' ')}
-            >
-              {t === 'table' ? 'List' : 'Calendar'}
-            </button>
-          ))}
-        </div>
+      <div>
+        <h1 className="text-xl font-semibold text-[#1E293B]">Registers</h1>
+        <p className="mt-1 text-sm text-[#5B6E8C]">View-only access to your registers and their schedules</p>
       </div>
 
-      {tab === 'table' ? (
-        <div className="overflow-x-auto rounded-xl border border-[#EFF2F6] bg-white">
-          {isLoading ? (
-            <div className="py-12 text-center text-sm text-[#8A99B0]">Loading…</div>
-          ) : registers.length === 0 ? (
-            <div className="py-12 text-center text-sm text-[#8A99B0]">No registers found.</div>
-          ) : (
-            <table className="w-full text-sm">
-              <thead className="border-b border-[#EFF2F6] bg-[#F8F9FC]">
-                <tr>
-                  {['Register Name', 'Register No.', 'Head Name', 'Checking Cycle', 'Priority', 'Start Date', 'Status', 'Next Due Date'].map(
-                    (h) => (
-                      <th key={h} className="whitespace-nowrap px-4 py-3 text-left text-xs font-semibold text-[#8A99B0]">
-                        {h}
-                      </th>
-                    )
-                  )}
+      <div className="overflow-x-auto rounded-xl border border-[#EFF2F6] bg-white">
+        {isLoading ? (
+          <div className="py-12 text-center text-sm text-[#8A99B0]">Loading…</div>
+        ) : registers.length === 0 ? (
+          <div className="py-12 text-center text-sm text-[#8A99B0]">No registers found.</div>
+        ) : (
+          <table className="w-full text-sm">
+            <thead className="border-b border-[#EFF2F6] bg-[#F8F9FC]">
+              <tr>
+                {['Register Name', 'Register No.', 'Head Name', 'Checking Cycle', 'Priority', 'Start Date', 'Status', 'Next Due Date'].map(
+                  (h) => (
+                    <th key={h} className="whitespace-nowrap px-4 py-3 text-left text-xs font-semibold text-[#8A99B0]">
+                      {h}
+                    </th>
+                  )
+                )}
+              </tr>
+            </thead>
+            <tbody className="divide-y divide-[#F1F4F9]">
+              {registers.map((r) => (
+                <tr key={r.id} className="transition hover:bg-[#F8F9FC]">
+                  <td className="px-4 py-3">
+                    <button
+                      type="button"
+                      onClick={() => setDetailsRegister(r)}
+                      className="font-medium text-[#185FA5] hover:underline"
+                    >
+                      {r.name}
+                    </button>
+                  </td>
+                  <td className="px-4 py-3 text-[#5B6E8C]">{r.register_no}</td>
+                  <td className="px-4 py-3 text-[#5B6E8C]">{r.head_name}</td>
+                  <td className="px-4 py-3 text-[#5B6E8C]">{CYCLE_LABEL[r.checking_cycle]}</td>
+                  <td className="px-4 py-3">
+                    <Badge variant={PRIORITY_BADGE[r.priority]}>{r.priority}</Badge>
+                  </td>
+                  <td className="px-4 py-3 text-[#5B6E8C]">{formatDate(r.start_date)}</td>
+                  <td className="px-4 py-3">
+                    <Badge variant={STATUS_BADGE[r.status]}>{r.status}</Badge>
+                  </td>
+                  <td className="px-4 py-3 text-[#5B6E8C]">{formatDate(r.next_due_date)}</td>
                 </tr>
-              </thead>
-              <tbody className="divide-y divide-[#F1F4F9]">
-                {registers.map((r) => (
-                  <tr key={r.id} className="transition hover:bg-[#F8F9FC]">
-                    <td className="px-4 py-3">
-                      <button
-                        type="button"
-                        onClick={() => setDetailsRegister(r)}
-                        className="font-medium text-[#185FA5] hover:underline"
-                      >
-                        {r.name}
-                      </button>
-                    </td>
-                    <td className="px-4 py-3 text-[#5B6E8C]">{r.register_no}</td>
-                    <td className="px-4 py-3 text-[#5B6E8C]">{r.head_name}</td>
-                    <td className="px-4 py-3 text-[#5B6E8C]">{CYCLE_LABEL[r.checking_cycle]}</td>
-                    <td className="px-4 py-3">
-                      <Badge variant={PRIORITY_BADGE[r.priority]}>{r.priority}</Badge>
-                    </td>
-                    <td className="px-4 py-3 text-[#5B6E8C]">{formatDate(r.start_date)}</td>
-                    <td className="px-4 py-3">
-                      <Badge variant={STATUS_BADGE[r.status]}>{r.status}</Badge>
-                    </td>
-                    <td className="px-4 py-3 text-[#5B6E8C]">{formatDate(r.next_due_date)}</td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          )}
-        </div>
-      ) : (
-        <RegisterCalendar events={calendarEvents} onEventClick={handleEventClick} />
-      )}
+              ))}
+            </tbody>
+          </table>
+        )}
+      </div>
+
+      <div>
+        <h2 className="mb-3 text-sm font-semibold text-[#1E293B]">Calendar</h2>
+        <RegisterCalendar events={calendarEvents} onEventClick={handleEventClick} onRangeChange={setCalendarRange} />
+      </div>
 
       <RegisterDetailsModal register={detailsRegister} onClose={() => setDetailsRegister(null)} />
     </div>

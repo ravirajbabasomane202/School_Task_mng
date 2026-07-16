@@ -5,13 +5,16 @@ import Button from '../../components/common/Button';
 import Modal from '../../components/common/Modal';
 import Badge from '../../components/common/Badge';
 import Input from '../../components/common/Input';
+import RegisterCalendar from '../../components/registers/RegisterCalendar';
 import RegisterCalendarPopup from '../../components/registers/RegisterCalendarPopup';
 import RegisterDetailsModal from '../../components/registers/RegisterDetailsModal';
 import { formatDate } from '../../utils/dateUtils';
 import {
   deleteRegister,
+  getRegisterCalendarEvents,
   getRegisterHeads,
   getRegisters,
+  updateOccurrenceStatus,
   updateRegister,
   updateRegisterStatus,
 } from '../../services/registerService';
@@ -22,6 +25,7 @@ import {
 } from '../../types/register.types';
 import type {
   Register,
+  RegisterCalendarEvent,
   RegisterCycle,
   RegisterPriority,
   RegisterStatus,
@@ -67,9 +71,14 @@ function RegisterMonitoring() {
 
   const [statusTarget, setStatusTarget] = useState<Register | null>(null);
   const [pendingStatus, setPendingStatus] = useState<RegisterStatus>('OK');
+  // "Edit This Occurrence" — separate from statusTarget ("Edit Entire Series")
+  // so that clicking one calendar dot can never resolve to a series-wide update.
+  const [occurrenceTarget, setOccurrenceTarget] = useState<RegisterCalendarEvent | null>(null);
+  const [pendingOccurrenceStatus, setPendingOccurrenceStatus] = useState<RegisterStatus>('OK');
   const [deleteTarget, setDeleteTarget] = useState<Register | null>(null);
   const [detailsRegister, setDetailsRegister] = useState<Register | null>(null);
   const [calendarRegister, setCalendarRegister] = useState<Register | null>(null);
+  const [calendarRange, setCalendarRange] = useState<{ start: string; end: string } | null>(null);
 
   const { data: registers = [], isLoading } = useQuery({
     queryKey: ['registers', search, cycleFilter, priorityFilter, statusFilter],
@@ -88,11 +97,23 @@ function RegisterMonitoring() {
     queryFn: getRegisterHeads,
   });
 
+  // Full calendar of every register's occurrences, shown directly on this
+  // page alongside the List (no List/Calendar toggle — Section 3 of the spec).
+  const { data: calendarEvents = [] } = useQuery({
+    queryKey: ['register-calendar', 'overview', 'chairman', calendarRange?.start, calendarRange?.end],
+    queryFn: () => getRegisterCalendarEvents(calendarRange ?? undefined),
+    enabled: !!calendarRange,
+  });
+
   const updateMutation = useMutation({
     mutationFn: ({ id, data }: { id: number; data: Record<string, unknown> }) => updateRegister(id, data),
-    onSuccess: () => {
+    onSuccess: (_updated, variables) => {
       qc.invalidateQueries({ queryKey: ['registers'] });
-      qc.invalidateQueries({ queryKey: ['register-calendar'] });
+      // Refresh the combined calendar (it shows every register) and only the
+      // single-register popup cache for the record that actually changed —
+      // other registers' popups stay untouched (Section 2 of the spec).
+      qc.invalidateQueries({ queryKey: ['register-calendar', 'overview'] });
+      qc.invalidateQueries({ queryKey: ['register-calendar', 'single', variables.id] });
       toast.success('Register updated successfully');
       setEditingRegister(null);
       setEditForm(null);
@@ -106,20 +127,39 @@ function RegisterMonitoring() {
 
   const statusMutation = useMutation({
     mutationFn: ({ id, status }: { id: number; status: RegisterStatus }) => updateRegisterStatus(id, status),
-    onSuccess: () => {
+    onSuccess: (_updated, variables) => {
+      // Apply the change only to the selected registry record: refresh the
+      // list (single combined query) plus the calendar for just this record.
       qc.invalidateQueries({ queryKey: ['registers'] });
-      qc.invalidateQueries({ queryKey: ['register-calendar'] });
+      qc.invalidateQueries({ queryKey: ['register-calendar', 'overview'] });
+      qc.invalidateQueries({ queryKey: ['register-calendar', 'single', variables.id] });
       toast.success('Register status updated');
       setStatusTarget(null);
     },
     onError: () => toast.error('Failed to update status'),
   });
 
+  // Edit This Occurrence: keyed by (register id, occurrence date) — the
+  // request can only ever resolve to one RegisterOccurrence row server-side.
+  const occurrenceMutation = useMutation({
+    mutationFn: ({ id, occurrenceDate, status }: { id: number; occurrenceDate: string; status: RegisterStatus }) =>
+      updateOccurrenceStatus(id, occurrenceDate, status),
+    onSuccess: (_updated, variables) => {
+      qc.invalidateQueries({ queryKey: ['registers'] });
+      qc.invalidateQueries({ queryKey: ['register-calendar', 'overview'] });
+      qc.invalidateQueries({ queryKey: ['register-calendar', 'single', variables.id] });
+      toast.success('Occurrence updated successfully');
+      setOccurrenceTarget(null);
+    },
+    onError: () => toast.error('Failed to update occurrence'),
+  });
+
   const deleteMutation = useMutation({
     mutationFn: deleteRegister,
-    onSuccess: () => {
+    onSuccess: (_result, id) => {
       qc.invalidateQueries({ queryKey: ['registers'] });
-      qc.invalidateQueries({ queryKey: ['register-calendar'] });
+      qc.invalidateQueries({ queryKey: ['register-calendar', 'overview'] });
+      qc.invalidateQueries({ queryKey: ['register-calendar', 'single', id] });
       toast.success('Register deleted successfully');
       setDeleteTarget(null);
     },
@@ -151,6 +191,15 @@ function RegisterMonitoring() {
   const openStatusModal = (register: Register) => {
     setStatusTarget(register);
     setPendingStatus(register.status);
+  };
+
+  // Clicking a calendar dot edits ONLY that one occurrence (the date the
+  // user actually clicked), never the whole recurring series. Editing the
+  // entire series is still available from the registry list's "Update
+  // Status" action (openStatusModal), which is explicitly series-scoped.
+  const handleCalendarEventClick = (event: RegisterCalendarEvent) => {
+    setOccurrenceTarget(event);
+    setPendingOccurrenceStatus(event.status);
   };
 
   const emptyState = useMemo(() => !isLoading && registers.length === 0, [isLoading, registers]);
@@ -267,8 +316,9 @@ function RegisterMonitoring() {
                         onClick={() => openStatusModal(r)}
                         className="text-xs text-emerald-600 hover:underline"
                         type="button"
+                        title="Updates the whole recurring series' baseline status"
                       >
-                        Update Status
+                        Edit Entire Series
                       </button>
                       <button
                         onClick={() => setCalendarRegister(r)}
@@ -291,6 +341,14 @@ function RegisterMonitoring() {
             </tbody>
           </table>
         )}
+      </div>
+
+      {/* Full calendar of every register, shown directly (no List/Calendar
+          toggle — Section 3). Clicking an event opens the same Update Status
+          popup used by the list above, scoped to that one record. */}
+      <div>
+        <h2 className="mb-3 text-sm font-semibold text-[#1E293B]">Calendar</h2>
+        <RegisterCalendar events={calendarEvents} onEventClick={handleCalendarEventClick} onRangeChange={setCalendarRange} />
       </div>
 
       {/* Edit modal */}
@@ -378,12 +436,14 @@ function RegisterMonitoring() {
         ) : null}
       </Modal>
 
-      {/* Update status modal */}
-      <Modal isOpen={!!statusTarget} onClose={() => setStatusTarget(null)} title="Update Status">
+      {/* Edit Entire Series modal — updates the register's own shared status/next-due-date. */}
+      <Modal isOpen={!!statusTarget} onClose={() => setStatusTarget(null)} title="Edit Entire Series">
         {statusTarget ? (
           <div className="space-y-4">
             <p className="text-sm text-[#5B6E8C]">
-              Update status for <span className="font-semibold text-[#1E293B]">{statusTarget.name}</span> ({statusTarget.register_no})
+              This updates the whole recurring series for{' '}
+              <span className="font-semibold text-[#1E293B]">{statusTarget.name}</span> ({statusTarget.register_no}), not a single
+              occurrence.
             </p>
             <label className="flex flex-col gap-1.5">
               <span className="text-[12px] font-medium text-[#36506C]">Status</span>
@@ -409,6 +469,51 @@ function RegisterMonitoring() {
                 onClick={() => statusMutation.mutate({ id: statusTarget.id, status: pendingStatus })}
               >
                 Update
+              </Button>
+            </div>
+          </div>
+        ) : null}
+      </Modal>
+
+      {/* Edit This Occurrence modal — scoped to exactly one date; never touches any other occurrence. */}
+      <Modal isOpen={!!occurrenceTarget} onClose={() => setOccurrenceTarget(null)} title="Update Status — This Occurrence">
+        {occurrenceTarget ? (
+          <div className="space-y-4">
+            <p className="text-sm text-[#5B6E8C]">
+              Updating only the <span className="font-semibold text-[#1E293B]">{formatDate(occurrenceTarget.date)}</span> occurrence
+              of <span className="font-semibold text-[#1E293B]">{occurrenceTarget.register.name}</span> (
+              {occurrenceTarget.register.register_no}). Other occurrences of this recurring register are not affected.
+            </p>
+            <label className="flex flex-col gap-1.5">
+              <span className="text-[12px] font-medium text-[#36506C]">Status</span>
+              <select
+                value={pendingOccurrenceStatus}
+                onChange={(e) => setPendingOccurrenceStatus(e.target.value as RegisterStatus)}
+                className="min-h-[38px] rounded-[10px] border-[0.5px] border-solid border-[#DCE2EA] bg-[#F8F9FC] px-3 text-sm"
+              >
+                {REGISTER_STATUSES.map((s) => (
+                  <option key={s.value} value={s.value}>
+                    {s.label}
+                  </option>
+                ))}
+              </select>
+            </label>
+            <div className="flex justify-end gap-3 pt-2">
+              <Button variant="ghost" type="button" onClick={() => setOccurrenceTarget(null)}>
+                Cancel
+              </Button>
+              <Button
+                type="button"
+                loading={occurrenceMutation.isPending}
+                onClick={() =>
+                  occurrenceMutation.mutate({
+                    id: occurrenceTarget.register_id,
+                    occurrenceDate: occurrenceTarget.occurrence_date,
+                    status: pendingOccurrenceStatus,
+                  })
+                }
+              >
+                Update This Occurrence
               </Button>
             </div>
           </div>

@@ -27,6 +27,9 @@ class Config:
 
     FRONTEND_URL = os.environ.get('FRONTEND_URL', 'http://localhost:5173')
     FRONTEND_URLS = os.environ.get('FRONTEND_URLS', FRONTEND_URL)
+    SCHOOL_NAME = os.environ.get('SCHOOL_NAME', 'Adhira International School')
+    CHAIRMAN_NAME = os.environ.get('CHAIRMAN_NAME', 'Navnath Dhawale')
+    APP_NAME = os.environ.get('APP_NAME', 'EduTask Pro')
 
 
 class DevelopmentConfig(Config):

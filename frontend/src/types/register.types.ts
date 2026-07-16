@@ -85,7 +85,23 @@ export interface RegisterFilters {
 }
 
 export interface RegisterCalendarEvent {
-  id: number;
+  /**
+   * Composite `"{registerId}:{date}"` — display-only React key. This is NOT
+   * what identifies the occurrence to the backend for updates; it is never
+   * sent in an update request.
+   */
+  id: string;
+  register_id: number;
+  /**
+   * The real, unique identity of this occurrence once it has been
+   * individually edited at least once (the `RegisterOccurrence.id` row).
+   * `null` until the occurrence has never been touched — in that case the
+   * update endpoint is addressed by `register_id` + `occurrence_date`
+   * instead, and the backend upserts the row on first edit.
+   */
+  occurrence_id: number | null;
+  /** The exact calendar date this occurrence falls on (YYYY-MM-DD). Required, alongside register_id, to update only this one occurrence. */
+  occurrence_date: string;
   title: string;
   date: string;
   status: RegisterStatus;
@@ -100,6 +116,7 @@ export interface RegisterCalendarEntry {
   date: string;
   status: RegisterComputedStatus;
   dot_color: RegisterDotColor;
+  occurrence_id: number | null;
 }
 
 export interface RegisterCalendarResponse {

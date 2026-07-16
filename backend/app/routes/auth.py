@@ -139,6 +139,15 @@ def me():
     return success(user.to_auth_dict())
 
 
+@auth_bp.route('/school-info', methods=['GET'])
+def school_info():
+    return success({
+        'schoolName': current_app.config.get('SCHOOL_NAME', 'Adhira International School'),
+        'chairmanName': current_app.config.get('CHAIRMAN_NAME', 'Navnath Dhawale'),
+        'appName': current_app.config.get('APP_NAME', 'EduTask Pro')
+    }, 'School info retrieved')
+
+
 @auth_bp.route('/change-password', methods=['POST'])
 @jwt_required()
 def change_password():

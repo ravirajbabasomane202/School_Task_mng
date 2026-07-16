@@ -242,3 +242,104 @@ class TestRegisterCalendarPopup:
         body = resp.get_json()
         assert body['data']['register']['id'] == register_id
         assert isinstance(body['data']['entries'], list)
+
+
+class TestUpdateOccurrenceStatus:
+    """Regression tests for the "editing one occurrence updates several" bug."""
+
+    def test_forbidden_for_non_chairman(self, client, auth_headers):
+        created = client.post(
+            '/api/registers', json=_payload(cycle='WEEKLY', start_date=(date.today() - timedelta(days=21)).isoformat()),
+            headers=auth_headers['chairman'],
+        ).get_json()
+        register_id = created['data']['id']
+        occ_date = created['data']['start_date']
+        resp = client.patch(
+            f'/api/registers/{register_id}/occurrences/{occ_date}/status',
+            json={'status': 'OK'},
+            headers=auth_headers['hr'],
+        )
+        assert resp.status_code == 403
+
+    def test_invalid_status_rejected(self, client, auth_headers):
+        created = client.post('/api/registers', json=_payload(cycle='WEEKLY'), headers=auth_headers['chairman']).get_json()
+        register_id = created['data']['id']
+        occ_date = created['data']['start_date']
+        resp = client.patch(
+            f'/api/registers/{register_id}/occurrences/{occ_date}/status',
+            json={'status': 'BOGUS'},
+            headers=auth_headers['chairman'],
+        )
+        assert resp.status_code == 400
+
+    def test_editing_one_occurrence_does_not_change_others(self, client, auth_headers):
+        # A WEEKLY register with several past occurrences already in range.
+        start_date = date.today() - timedelta(days=35)
+        created = client.post(
+            '/api/registers',
+            json=_payload(cycle='WEEKLY', start_date=start_date.isoformat()),
+            headers=auth_headers['chairman'],
+        ).get_json()
+        register_id = created['data']['id']
+
+        range_start = (start_date - timedelta(days=7)).isoformat()
+        range_end = (date.today() + timedelta(days=21)).isoformat()
+
+        before = client.get(
+            f'/api/registers/calendar?start={range_start}&end={range_end}',
+            headers=auth_headers['chairman'],
+        ).get_json()['data']
+        before_by_date = {e['date']: e['dot_color'] for e in before if e['register_id'] == register_id}
+        assert len(before_by_date) >= 3, 'need multiple occurrences in range for this test to be meaningful'
+
+        occurrence_dates = sorted(before_by_date)
+        target_date = occurrence_dates[1]  # edit ONE occurrence only
+
+        resp = client.patch(
+            f'/api/registers/{register_id}/occurrences/{target_date}/status',
+            json={'status': 'OK'},
+            headers=auth_headers['chairman'],
+        )
+        assert resp.status_code == 200
+        assert resp.get_json()['data']['occurrence']['occurrence_date'] == target_date
+        assert resp.get_json()['data']['occurrence']['dot_color'] == 'green'
+
+        after = client.get(
+            f'/api/registers/calendar?start={range_start}&end={range_end}',
+            headers=auth_headers['chairman'],
+        ).get_json()['data']
+        after_by_date = {e['date']: e['dot_color'] for e in after if e['register_id'] == register_id}
+
+        changed_dates = [d for d in occurrence_dates if before_by_date[d] != after_by_date[d]]
+
+        # Only the ONE date that was edited should have changed color.
+        assert changed_dates == [target_date]
+        assert after_by_date[target_date] == 'green'
+
+        # The register's own shared status/next_due_date must be untouched --
+        # "Edit This Occurrence" never mutates the series-level row.
+        register_after = client.get(f'/api/registers/{register_id}', headers=auth_headers['chairman']).get_json()['data']
+        assert register_after['status'] == created['data']['status']
+        assert register_after['next_due_date'] == created['data']['next_due_date']
+
+    def test_editing_occurrence_is_idempotent_and_updates_same_row(self, client, auth_headers):
+        created = client.post('/api/registers', json=_payload(cycle='WEEKLY'), headers=auth_headers['chairman']).get_json()
+        register_id = created['data']['id']
+        occ_date = created['data']['start_date']
+
+        first = client.patch(
+            f'/api/registers/{register_id}/occurrences/{occ_date}/status',
+            json={'status': 'OK'},
+            headers=auth_headers['chairman'],
+        ).get_json()['data']['occurrence']
+
+        second = client.patch(
+            f'/api/registers/{register_id}/occurrences/{occ_date}/status',
+            json={'status': 'REJECTED'},
+            headers=auth_headers['chairman'],
+        ).get_json()['data']['occurrence']
+
+        # Same underlying row (upsert), status changed in place.
+        assert first['id'] == second['id']
+        assert second['status'] == 'REJECTED'
+        assert second['dot_color'] == 'red'

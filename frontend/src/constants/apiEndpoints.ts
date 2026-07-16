@@ -93,6 +93,9 @@ export const REGISTER_ENDPOINTS = {
   update: (id: number | string) => `/registers/${id}`,
   delete: (id: number | string) => `/registers/${id}`,
   updateStatus: (id: number | string) => `/registers/${id}/status`,
+  /** Edit ONE occurrence only — never affects any other date's occurrence. */
+  updateOccurrenceStatus: (id: number | string, occurrenceDate: string) =>
+    `/registers/${id}/occurrences/${occurrenceDate}/status`,
 } as const;
 
 export const PO_ENDPOINTS = {

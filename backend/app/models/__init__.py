@@ -13,7 +13,7 @@ from app.models.recruitment import Recruitment, RecruitmentApplication
 from app.models.asset import Asset
 from app.models.purchase_order import PurchaseOrder, PurchaseOrderItem
 from app.models.login_attempt import LoginAttempt
-from app.models.register import Register
+from app.models.register import Register, RegisterOccurrence
 
 __all__ = [
     'Department', 'User', 'Task', 'TaskHistory',
@@ -23,5 +23,5 @@ __all__ = [
     'LeaveRequest', 'ResumptionRequest', 'SalaryIncrement',
     'Recruitment', 'RecruitmentApplication',
     'Asset', 'PurchaseOrder', 'PurchaseOrderItem',
-    'LoginAttempt', 'Register'
+    'LoginAttempt', 'Register', 'RegisterOccurrence'
 ]

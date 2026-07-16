@@ -54,7 +54,9 @@ function RegisterCalendarPopup({ register, onClose }: RegisterCalendarPopupProps
   const monthKey = `${anchor.getFullYear()}-${String(anchor.getMonth() + 1).padStart(2, '0')}`;
 
   const { data, isLoading } = useQuery({
-    queryKey: ['register-calendar', register?.id, monthKey],
+    // 'single' scopes this cache entry to just this one register, so that
+    // updating another register's status never invalidates/refetches this popup.
+    queryKey: ['register-calendar', 'single', register?.id, monthKey],
     queryFn: () => getRegisterCalendarFor(register!.id, monthKey),
     enabled: !!register,
   });

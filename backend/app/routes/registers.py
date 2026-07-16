@@ -1,10 +1,10 @@
-from datetime import datetime, date, timedelta
+from datetime import datetime, date, timedelta, timezone
 
 from flask import Blueprint, request
 from flask_jwt_extended import jwt_required, get_jwt_identity
 
 from app.extensions import db
-from app.models.register import Register, CYCLES, PRIORITIES, STATUSES, calculate_next_due_date
+from app.models.register import Register, RegisterOccurrence, CYCLES, PRIORITIES, STATUSES, calculate_next_due_date, _add_months
 from app.models.user import User, DEPARTMENT_HEAD_ROLES
 from app.utils.response import success, error
 from app.utils.decorators import roles_required
@@ -12,6 +12,18 @@ from app.utils.decorators import roles_required
 registers_bp = Blueprint('registers', __name__)
 
 REGISTER_MANAGER_ROLES = ('CHAIRMAN',)
+
+
+def _scope_to_user(query, user):
+    """Restrict a Register query to records assigned/available to `user`.
+
+    The Chairman can see and manage every register. Every other role only
+    sees registers where they are the assigned Head (`head_id`), i.e. the
+    registers actually available to them.
+    """
+    if user.role in REGISTER_MANAGER_ROLES:
+        return query
+    return query.filter(Register.head_id == user.id)
 
 # `head_name` is accepted as a legacy fallback, but `head_id` is the preferred field
 # going forward — the register stores the selected user's ID, not free text.
@@ -90,7 +102,7 @@ def list_registers():
     if not user:
         return error('User not found', 401)
 
-    query = Register.query
+    query = _scope_to_user(Register.query, user)
 
     search = request.args.get('search')
     cycle = request.args.get('cycle')
@@ -114,43 +126,79 @@ def list_registers():
 @registers_bp.route('/calendar', methods=['GET'])
 @jwt_required()
 def calendar_events():
-    """Return register schedules as calendar events, optionally within a date range."""
+    """Return register schedules as calendar events within a date range.
+
+    Registers are cyclic (DAILY/WEEKLY/MONTHLY/...), so every occurrence of
+    the cycle that falls inside [start, end] is returned — not just the
+    single stored `next_due_date` — so the calendar shows a dot on every
+    scheduled day, including future ones, as the user pages through it.
+    """
     user_id = get_jwt_identity()
     user = db.session.get(User, user_id)
     if not user:
         return error('User not found', 401)
 
-    start = _parse_date(request.args.get('start'))
-    end = _parse_date(request.args.get('end'))
+    today = date.today()
+    start = _parse_date(request.args.get('start')) or (today - timedelta(days=90))
+    end = _parse_date(request.args.get('end')) or (today + timedelta(days=365))
 
-    query = Register.query
-    if start:
-        query = query.filter(Register.next_due_date >= start)
-    if end:
-        query = query.filter(Register.next_due_date <= end)
+    query = _scope_to_user(Register.query, user)
+
+    cycle = request.args.get('cycle')
+    priority = request.args.get('priority')
+    status = request.args.get('status')
+    if cycle:
+        query = query.filter_by(cycle=cycle.upper())
+    if priority:
+        query = query.filter_by(priority=priority.upper())
+    if status:
+        query = query.filter_by(status=status.upper())
 
     registers = query.order_by(Register.next_due_date.asc()).all()
 
-    today = date.today()
+    # Batch-fetch every persisted occurrence record for every register in this
+    # range in one query (instead of one query per register per occurrence),
+    # then hand each register its own slice via `occurrence_map`.
+    register_ids = [r.id for r in registers]
+    occurrence_maps = {r.id: {} for r in registers}
+    if register_ids:
+        all_occurrences = RegisterOccurrence.query.filter(
+            RegisterOccurrence.register_id.in_(register_ids),
+            RegisterOccurrence.occurrence_date >= start,
+            RegisterOccurrence.occurrence_date <= end,
+        ).all()
+        for occ in all_occurrences:
+            occurrence_maps[occ.register_id][occ.occurrence_date] = occ
+
     events = []
     for r in registers:
-        is_future_or_pending = r.next_due_date >= today
-        computed_status = r.computed_status(today)
-        # `color` kept as a 3-value field for backward compatibility with older
-        # clients; `dot_color` carries the full 4-state Completed/Pending/Failed/Upcoming.
-        color = 'green' if computed_status == 'COMPLETED' else ('red' if computed_status == 'FAILED' else 'gray')
+        for occ in r.generate_occurrences(start, end, today, occurrence_map=occurrence_maps[r.id]):
+            occ_date = occ['date']
+            computed_status = occ['status']
+            dot_color = occ['dot_color']
+            # `color` kept as a 3-value field for backward compatibility with older
+            # clients; `dot_color` carries the full 4-state Completed/Pending/Failed/Upcoming.
+            color = 'green' if computed_status == 'COMPLETED' else ('red' if computed_status == 'FAILED' else 'gray')
 
-        events.append({
-            'id': r.id,
-            'title': f'{r.name} ({r.register_no})',
-            'date': r.next_due_date.isoformat(),
-            'status': r.status,
-            'computed_status': computed_status,
-            'color': color,
-            'dot_color': r.dot_color(today),
-            'is_future_or_pending': is_future_or_pending,
-            'register': r.to_dict(),
-        })
+            events.append({
+                # `id` stays a stable, unique-per-cell React key (register + date).
+                # It is NOT what identifies the occurrence to the backend for
+                # updates -- `register_id` + `occurrence_date` (or `occurrence_id`
+                # once a record exists) is what the update endpoint requires, and
+                # is what MUST be sent back so only this one occurrence changes.
+                'id': f'{r.id}:{occ_date.isoformat()}',
+                'register_id': r.id,
+                'occurrence_id': occ['occurrence_id'],
+                'occurrence_date': occ_date.isoformat(),
+                'title': f'{r.name} ({r.register_no})',
+                'date': occ_date.isoformat(),
+                'status': r.status,
+                'computed_status': computed_status,
+                'color': color,
+                'dot_color': dot_color,
+                'is_future_or_pending': occ_date >= today,
+                'register': r.to_dict(),
+            })
 
     return success(events)
 
@@ -158,9 +206,16 @@ def calendar_events():
 @registers_bp.route('/<int:register_id>', methods=['GET'])
 @jwt_required()
 def get_register(register_id: int):
+    user_id = get_jwt_identity()
+    user = db.session.get(User, user_id)
+    if not user:
+        return error('User not found', 401)
+
     register = db.session.get(Register, register_id)
     if not register:
         return error('Register not found', 404)
+    if user.role not in REGISTER_MANAGER_ROLES and register.head_id != user.id:
+        return error('You do not have access to this register', 403)
     return success(register.to_dict())
 
 
@@ -302,6 +357,62 @@ def update_status(register_id: int):
     return success(register.to_dict(), 'Register status updated')
 
 
+@registers_bp.route('/<int:register_id>/occurrences/<occurrence_date>/status', methods=['PATCH'])
+@roles_required(*REGISTER_MANAGER_ROLES)
+def update_occurrence_status(register_id: int, occurrence_date: str):
+    """Edit THIS occurrence only.
+
+    This is the fix for the "editing one occurrence updates several" bug:
+    the update targets a single `RegisterOccurrence` row, upserted on the
+    unique (register_id, occurrence_date) pair, and the SQL/ORM write below
+    only ever touches that one row --
+
+        RegisterOccurrence.query.filter_by(register_id=..., occurrence_date=...)
+
+    NOT `WHERE register_id = ?` alone and NOT the parent `Register` row, so
+    no other date's occurrence is ever affected. Contrast with
+    `update_status` below, which intentionally updates the shared `Register`
+    row and represents "Edit Entire Series".
+    """
+    register = db.session.get(Register, register_id)
+    if not register:
+        return error('Register not found', 404)
+
+    parsed_date = _parse_date(occurrence_date)
+    if not parsed_date:
+        return error('occurrence_date must be a valid date (YYYY-MM-DD)', 400)
+
+    data = request.get_json() or {}
+    new_status = (data.get('status') or '').upper()
+    if not new_status:
+        return error('status is required', 400)
+    if new_status not in STATUSES:
+        return error(f"status must be one of {', '.join(STATUSES)}", 400)
+
+    user_id = get_jwt_identity()
+
+    # Upsert scoped to (register_id, occurrence_date) -- this is the ONE
+    # occurrence being edited, and no other row is read or written.
+    occurrence = RegisterOccurrence.query.filter_by(
+        register_id=register_id,
+        occurrence_date=parsed_date,
+    ).first()
+    if occurrence is None:
+        occurrence = RegisterOccurrence(register_id=register_id, occurrence_date=parsed_date)
+        db.session.add(occurrence)
+
+    occurrence.status = new_status
+    occurrence.completed_by = user_id
+    occurrence.completed_at = datetime.now(timezone.utc)
+
+    db.session.commit()
+
+    return success({
+        'occurrence': occurrence.to_dict(),
+        'register': register.to_dict(),
+    }, 'Occurrence updated successfully')
+
+
 @registers_bp.route('/heads', methods=['GET'])
 @jwt_required()
 def list_register_heads():
@@ -328,13 +439,22 @@ def list_register_heads():
 def register_calendar(register_id: int):
     """Calendar dots for a single Register, for the small popup view.
 
-    Only the register's own scheduled due date (per its Checking Cycle) is
-    surfaced with a computed status; every other day in the visible range is
-    rendered blank on the frontend.
+    The register is cyclic (per its Checking Cycle), so every occurrence of
+    the cycle that falls within the viewed month is surfaced with its own
+    computed status — not just the single current due date — so daily/weekly/
+    monthly registers show a dot on every scheduled day of the month,
+    including future ones.
     """
+    user_id = get_jwt_identity()
+    user = db.session.get(User, user_id)
+    if not user:
+        return error('User not found', 401)
+
     register = db.session.get(Register, register_id)
     if not register:
         return error('Register not found', 404)
+    if user.role not in REGISTER_MANAGER_ROLES and register.head_id != user.id:
+        return error('You do not have access to this register', 403)
 
     today = date.today()
     month_str = request.args.get('month')  # 'YYYY-MM', defaults to the due date's month
@@ -347,20 +467,18 @@ def register_calendar(register_id: int):
     else:
         anchor = register.next_due_date.replace(day=1) if register.next_due_date else today.replace(day=1)
 
-    entries = []
-    # Always surface the current cycle's due date if it's the one being viewed.
-    if register.next_due_date and register.next_due_date.year == anchor.year and register.next_due_date.month == anchor.month:
-        entries.append({
-            'date': register.next_due_date.isoformat(),
-            'status': register.computed_status(today),
-            'dot_color': register.dot_color(today),
-        })
-    if register.last_completed_date and register.last_completed_date.year == anchor.year and register.last_completed_date.month == anchor.month:
-        entries.append({
-            'date': register.last_completed_date.isoformat(),
-            'status': 'COMPLETED',
-            'dot_color': 'green',
-        })
+    range_start = anchor
+    range_end = _add_months(anchor, 1) - timedelta(days=1)
+
+    entries = [
+        {
+            'date': occ['date'].isoformat(),
+            'status': occ['status'],
+            'dot_color': occ['dot_color'],
+            'occurrence_id': occ['occurrence_id'],
+        }
+        for occ in register.generate_occurrences(range_start, range_end, today)
+    ]
 
     return success({
         'register': register.to_dict(),

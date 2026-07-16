@@ -1,9 +1,11 @@
-import React, { useMemo, useState } from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
 import type { RegisterCalendarEvent, RegisterDotColor } from '../../types/register.types';
 
 interface RegisterCalendarProps {
   events: RegisterCalendarEvent[];
   onEventClick?: (event: RegisterCalendarEvent) => void;
+  /** Called whenever the visible grid range changes (initial render + every Prev/Next/Today/view switch). */
+  onRangeChange?: (range: { start: string; end: string }) => void;
 }
 
 type ViewMode = 'week' | 'month';
@@ -41,7 +43,7 @@ function addDays(d: Date, n: number): Date {
   return next;
 }
 
-function RegisterCalendar({ events, onEventClick }: RegisterCalendarProps) {
+function RegisterCalendar({ events, onEventClick, onRangeChange }: RegisterCalendarProps) {
   const [view, setView] = useState<ViewMode>('month');
   const [anchor, setAnchor] = useState(() => new Date());
 
@@ -63,6 +65,15 @@ function RegisterCalendar({ events, onEventClick }: RegisterCalendarProps) {
     const start = startOfMonthGrid(anchor);
     return Array.from({ length: 42 }, (_, i) => addDays(start, i));
   }, [view, anchor]);
+
+  // Tell the parent which dates are currently on screen so it can fetch
+  // events (including future/past cyclic occurrences) for this exact range —
+  // otherwise paging the calendar never requests data beyond the initial load.
+  useEffect(() => {
+    if (!onRangeChange || days.length === 0) return;
+    onRangeChange({ start: toKey(days[0]), end: toKey(days[days.length - 1]) });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [days]);
 
   const headerLabel =
     view === 'week'

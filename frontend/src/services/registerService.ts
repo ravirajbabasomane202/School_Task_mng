@@ -3,6 +3,7 @@ import { REGISTER_ENDPOINTS } from '../constants/apiEndpoints';
 import type {
   CreateRegisterPayload,
   Register,
+  RegisterCalendarEntry,
   RegisterCalendarEvent,
   RegisterCalendarResponse,
   RegisterFilters,
@@ -54,7 +55,26 @@ export async function deleteRegister(id: number): Promise<void> {
   await api.delete(REGISTER_ENDPOINTS.delete(id));
 }
 
+/** Edit Entire Series: updates the register's own shared status/next-due-date. */
 export async function updateRegisterStatus(id: number, status: RegisterStatus): Promise<Register> {
   const res = await api.patch<ApiResponse<Register>>(REGISTER_ENDPOINTS.updateStatus(id), { status });
+  return res.data.data;
+}
+
+/**
+ * Edit This Occurrence: updates ONLY the single occurrence identified by
+ * `registerId` + `occurrenceDate`. The backend upserts a dedicated
+ * RegisterOccurrence row scoped to that exact date — every other occurrence
+ * of the recurring series is left untouched.
+ */
+export async function updateOccurrenceStatus(
+  registerId: number,
+  occurrenceDate: string,
+  status: RegisterStatus
+): Promise<{ occurrence: RegisterCalendarEntry; register: Register }> {
+  const res = await api.patch<ApiResponse<{ occurrence: RegisterCalendarEntry; register: Register }>>(
+    REGISTER_ENDPOINTS.updateOccurrenceStatus(registerId, occurrenceDate),
+    { status }
+  );
   return res.data.data;
 }
