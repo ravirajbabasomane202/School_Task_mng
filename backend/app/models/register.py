@@ -213,8 +213,26 @@ class Register(db.Model):
 
         return occurrences
 
-    def to_dict(self):
-        computed_status = self.computed_status()
+    def effective_today_status(self, today=None, occurrence=None):
+        """Return (status, computed_status, dot_color) for "today" specifically.
+
+        The list/detail views show a single Status badge per register, and
+        the only thing that is ever updated now is TODAY's occurrence (see
+        `update_occurrence_status`) -- so that badge must reflect today's
+        `RegisterOccurrence` row when one exists, not the register's own
+        stale `status` column (which nothing writes to anymore once "Edit
+        Entire Series" was removed from the UI). Falls back to the
+        register-level computed status when today has no occurrence record
+        yet (e.g. a WEEKLY register on a day that isn't due).
+        """
+        today = today or date.today()
+        if occurrence is not None and occurrence.occurrence_date == today:
+            return occurrence.status, occurrence.computed_status(), occurrence.dot_color()
+        return self.status, self.computed_status(today), self.dot_color(today)
+
+    def to_dict(self, today=None, occurrence=None):
+        today = today or date.today()
+        status, computed_status, dot_color = self.effective_today_status(today, occurrence)
         return {
             'id': self.id,
             'name': self.name,
@@ -224,9 +242,9 @@ class Register(db.Model):
             'checking_cycle': self.cycle,
             'cycle': self.cycle,  # deprecated alias, kept for backward compatibility
             'priority': self.priority,
-            'status': self.status,
+            'status': status,
             'computed_status': computed_status,
-            'dot_color': self.dot_color(),
+            'dot_color': dot_color,
             'start_date': self.start_date.isoformat() if self.start_date else None,
             'next_due_date': self.next_due_date.isoformat() if self.next_due_date else None,
             'last_completed_date': self.last_completed_date.isoformat() if self.last_completed_date else None,

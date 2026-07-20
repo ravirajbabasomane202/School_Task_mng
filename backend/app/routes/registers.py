@@ -120,7 +120,23 @@ def list_registers():
         query = query.filter_by(status=status.upper())
 
     registers = query.order_by(Register.next_due_date.asc()).all()
-    return success([r.to_dict() for r in registers])
+
+    # The Status column must reflect TODAY's occurrence (the only thing
+    # "Update Status" ever writes now), not the register's own stale
+    # `status` field -- batch-fetch today's occurrence rows in one query.
+    today = date.today()
+    register_ids = [r.id for r in registers]
+    todays_occurrences = {}
+    if register_ids:
+        todays_occurrences = {
+            occ.register_id: occ
+            for occ in RegisterOccurrence.query.filter(
+                RegisterOccurrence.register_id.in_(register_ids),
+                RegisterOccurrence.occurrence_date == today,
+            ).all()
+        }
+
+    return success([r.to_dict(today=today, occurrence=todays_occurrences.get(r.id)) for r in registers])
 
 
 @registers_bp.route('/calendar', methods=['GET'])
@@ -172,6 +188,8 @@ def calendar_events():
 
     events = []
     for r in registers:
+        todays_occurrence = occurrence_maps[r.id].get(today)
+        register_dict = r.to_dict(today=today, occurrence=todays_occurrence)
         for occ in r.generate_occurrences(start, end, today, occurrence_map=occurrence_maps[r.id]):
             occ_date = occ['date']
             computed_status = occ['status']
@@ -197,7 +215,7 @@ def calendar_events():
                 'color': color,
                 'dot_color': dot_color,
                 'is_future_or_pending': occ_date >= today,
-                'register': r.to_dict(),
+                'register': register_dict,
             })
 
     return success(events)
@@ -216,7 +234,10 @@ def get_register(register_id: int):
         return error('Register not found', 404)
     if user.role not in REGISTER_MANAGER_ROLES and register.head_id != user.id:
         return error('You do not have access to this register', 403)
-    return success(register.to_dict())
+
+    today = date.today()
+    todays_occurrence = RegisterOccurrence.query.filter_by(register_id=register_id, occurrence_date=today).first()
+    return success(register.to_dict(today=today, occurrence=todays_occurrence))
 
 
 @registers_bp.route('', methods=['POST'])
@@ -409,7 +430,7 @@ def update_occurrence_status(register_id: int, occurrence_date: str):
 
     return success({
         'occurrence': occurrence.to_dict(),
-        'register': register.to_dict(),
+        'register': register.to_dict(today=date.today(), occurrence=occurrence),
     }, 'Occurrence updated successfully')
 
 
@@ -480,8 +501,10 @@ def register_calendar(register_id: int):
         for occ in register.generate_occurrences(range_start, range_end, today)
     ]
 
+    todays_occurrence = RegisterOccurrence.query.filter_by(register_id=register_id, occurrence_date=today).first()
+
     return success({
-        'register': register.to_dict(),
+        'register': register.to_dict(today=today, occurrence=todays_occurrence),
         'month': anchor.strftime('%Y-%m'),
         'entries': entries,
     })
