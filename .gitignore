@@ -22,9 +22,7 @@ build/
 uploads/tasks/
 uploads/reports/
 
-# Flask
-instance/
-migrations/
+
 
 # Node.js
 node_modules/
