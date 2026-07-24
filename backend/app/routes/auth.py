@@ -78,8 +78,8 @@ def login():
     # Automatically mark overdue tasks as delayed during login
     Task.mark_overdue_delayed()
 
-    access_token = create_access_token(identity=user.id)
-    refresh_token = create_refresh_token(identity=user.id)
+    access_token = create_access_token(identity=str(user.id))
+    refresh_token = create_refresh_token(identity=str(user.id))
 
     # Store refresh token in DB
     expires_at = datetime.now(timezone.utc) + current_app.config['JWT_REFRESH_TOKEN_EXPIRES']
@@ -125,7 +125,7 @@ def refresh():
     if not user or not user.is_active:
         return error('User not found or inactive', 401)
 
-    new_access_token = create_access_token(identity=user.id)
+    new_access_token = create_access_token(identity=str(user.id))
     return success({'accessToken': new_access_token}, 'Token refreshed')
 
 
@@ -133,7 +133,7 @@ def refresh():
 @jwt_required()
 def me():
     user_id = get_jwt_identity()
-    user = db.session.get(User, user_id)
+    user = db.session.get(User, int(user_id))
     if not user:
         return error('User not found', 404)
     return success(user.to_auth_dict())
@@ -152,7 +152,7 @@ def school_info():
 @jwt_required()
 def change_password():
     user_id = get_jwt_identity()
-    user = db.session.get(User, user_id)
+    user = db.session.get(User, int(user_id))
     data = request.get_json()
 
     if not data:

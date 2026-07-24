@@ -12,7 +12,7 @@ ELEVATED_ROLES = {'CHAIRMAN', 'DIRECTOR', 'PROPERTY'}
 
 
 def _current_user():
-    return db.session.get(User, get_jwt_identity())
+    return db.session.get(User, int(get_jwt_identity()))
 
 
 @housekeeping_bp.route('', methods=['GET'])

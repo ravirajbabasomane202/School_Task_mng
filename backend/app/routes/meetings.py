@@ -14,7 +14,7 @@ ELEVATED_ROLES = {'CHAIRMAN', 'DIRECTOR'}
 
 
 def _current_user():
-    return db.session.get(User, get_jwt_identity())
+    return db.session.get(User, int(get_jwt_identity()))
 
 def parse_iso_datetime(value):
     try:

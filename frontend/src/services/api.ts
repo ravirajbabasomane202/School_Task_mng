@@ -71,11 +71,23 @@ api.interceptors.response.use(
         );
         const newToken: string = response.data.data.accessToken;
 
-        // Update Redux + sessionStorage with the new access token
-        const currentUser = store.getState().auth.user;
-        if (currentUser) {
-          store.dispatch(setCredentials({ user: currentUser, accessToken: newToken }));
+        // Persist the new access token unconditionally. If Redux doesn't have a
+        // hydrated user yet (e.g. this tab only has a refreshToken in
+        // localStorage but no accessToken in sessionStorage - a fresh tab,
+        // a browser restart, etc.) fetch the profile via /auth/me so the
+        // store gets a real user object. Previously this update was skipped
+        // whenever currentUser was null, which meant the token was applied
+        // only to the single retried request and never saved anywhere else -
+        // causing every other request to keep reading the old/missing token
+        // from the store and loop through 401 -> refresh -> 401 forever.
+        let currentUser = store.getState().auth.user;
+        if (!currentUser) {
+          const meResponse = await axios.get(`${getApiBaseUrl()}/auth/me`, {
+            headers: { Authorization: `Bearer ${newToken}` }
+          });
+          currentUser = meResponse.data.data;
         }
+        store.dispatch(setCredentials({ user: currentUser, accessToken: newToken }));
 
         processQueue(null, newToken);
         originalRequest.headers['Authorization'] = `Bearer ${newToken}`;

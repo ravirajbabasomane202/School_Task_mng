@@ -22,7 +22,7 @@ def handle_connect(auth):
             token = token[7:]
 
         decoded = decode_token(token)
-        user_id = decoded.get('sub')
+        user_id = int(decoded.get('sub'))
 
         if not user_id:
             disconnect()

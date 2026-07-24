@@ -351,7 +351,7 @@ def _save_report_buffer(buffer, filename):
 @reports_bp.route('/daily', methods=['GET'])
 @jwt_required()
 def daily_report():
-    user = db.session.get(User, get_jwt_identity())
+    user = db.session.get(User, int(get_jwt_identity()))
     date_from = _parse_date(request.args.get('date_from'))
     date_to = _parse_date(request.args.get('date_to'))
     dept_id = request.args.get('department_id')
@@ -374,7 +374,7 @@ def daily_report():
 @reports_bp.route('/weekly', methods=['GET'])
 @jwt_required()
 def weekly_report():
-    user = db.session.get(User, get_jwt_identity())
+    user = db.session.get(User, int(get_jwt_identity()))
     date_from = _parse_date(request.args.get('date_from'))
     date_to = _parse_date(request.args.get('date_to'))
     dept_id = request.args.get('department_id')
@@ -386,7 +386,7 @@ def weekly_report():
 @reports_bp.route('/monthly', methods=['GET'])
 @jwt_required()
 def monthly_report():
-    user = db.session.get(User, get_jwt_identity())
+    user = db.session.get(User, int(get_jwt_identity()))
     date_from = _parse_date(request.args.get('date_from'))
     date_to = _parse_date(request.args.get('date_to'))
     dept_id = request.args.get('department_id')
@@ -398,7 +398,7 @@ def monthly_report():
 @reports_bp.route('/export', methods=['GET'])
 @jwt_required()
 def export_report():
-    user = db.session.get(User, get_jwt_identity())
+    user = db.session.get(User, int(get_jwt_identity()))
     fmt = request.args.get('format', 'pdf').lower()
     date_from = _parse_date(request.args.get('date_from'))
     date_to = _parse_date(request.args.get('date_to'))

@@ -74,7 +74,7 @@ def create_recruitment():
         vacancies=data.get('vacancies', 1),
         description=data.get('description'),
         status=data.get('status', 'OPEN'),
-        created_by=get_jwt_identity(),
+        created_by=int(get_jwt_identity()),
     )
     db.session.add(recruitment)
     db.session.commit()

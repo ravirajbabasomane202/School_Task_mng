@@ -53,7 +53,7 @@ def _task_stats(tasks):
 @jwt_required()
 def chairman_dashboard():
     Task.mark_overdue_delayed()
-    user = db.session.get(User, get_jwt_identity())
+    user = db.session.get(User, int(get_jwt_identity()))
     if not user or user.role not in ('CHAIRMAN', 'DIRECTOR'):
         return jsonify({'success': False, 'message': 'Forbidden', 'data': None}), 403
 
@@ -330,7 +330,7 @@ def director_dashboard():
 def role_analytics(role):
     """Generic analytics endpoint used by all department roles."""
     Task.mark_overdue_delayed()
-    user = db.session.get(User, get_jwt_identity())
+    user = db.session.get(User, int(get_jwt_identity()))
     if not user:
         return jsonify({'success': False, 'message': 'Unauthorized', 'data': None}), 401
 

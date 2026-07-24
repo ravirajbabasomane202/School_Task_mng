@@ -63,7 +63,7 @@ def _create_notification(user_id, notif_type, message, task_id=None):
 
 
 def _current_user():
-    return db.session.get(User, get_jwt_identity())
+    return db.session.get(User, int(get_jwt_identity()))
 
 
 def _is_elevated(user):
