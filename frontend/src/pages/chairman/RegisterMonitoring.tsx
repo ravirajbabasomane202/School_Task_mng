@@ -1,6 +1,7 @@
 import React, { useMemo, useState } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import toast from 'react-hot-toast';
+import { Download } from 'lucide-react';
 import Button from '../../components/common/Button';
 import Modal from '../../components/common/Modal';
 import Badge from '../../components/common/Badge';
@@ -186,6 +187,38 @@ function RegisterMonitoring() {
 
   const emptyState = useMemo(() => !isLoading && registers.length === 0, [isLoading, registers]);
 
+  // Export the currently filtered (search / cycle / priority / status) list
+  // of registers to CSV.
+  const handleExport = () => {
+    const csvCell = (value: string | number) => {
+      const str = String(value ?? '');
+      return /[",\n]/.test(str) ? `"${str.replace(/"/g, '""')}"` : str;
+    };
+    const rows = [
+      ['Register Name', 'Register No.', 'Head Name', 'Checking Cycle', 'Priority', 'Status', 'Next Due Date', 'Last Completed'],
+      ...registers.map((r) => [
+        r.name,
+        r.register_no,
+        r.head_name,
+        CYCLE_LABEL[r.checking_cycle],
+        r.priority,
+        r.status,
+        r.next_due_date,
+        r.last_completed_date ?? '',
+      ]),
+    ];
+    const csv = rows.map((row) => row.map(csvCell).join(',')).join('\n');
+    const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `registers_${todayISO()}.csv`;
+    document.body.appendChild(a);
+    a.click();
+    a.remove();
+    URL.revokeObjectURL(url);
+  };
+
   return (
     <div className="space-y-6 p-6">
       <div className="flex items-center justify-between">
@@ -193,6 +226,10 @@ function RegisterMonitoring() {
           <h1 className="text-xl font-semibold text-[#1E293B]">Register Monitoring</h1>
           <p className="mt-1 text-sm text-[#5B6E8C]">Track register status and upcoming due dates</p>
         </div>
+        <Button variant="primary" size="sm" onClick={handleExport} disabled={registers.length === 0}>
+          <Download size={14} />
+          Export CSV
+        </Button>
       </div>
 
       <div className="flex flex-wrap gap-3">
