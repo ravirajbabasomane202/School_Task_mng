@@ -141,7 +141,7 @@ function PerformanceAnalytics() {
       </div>
 
       <div className="rounded-[20px] border border-[#EFF2F6] bg-white p-6">
-        <h2 className="mb-4 text-xl font-semibold text-[#1E293B]">6-month completion trend</h2>
+        <h2 className="mb-4 text-xl font-semibold text-[#1E293B]">6-Month Completion Trend</h2>
         <PerformanceChart data={chartData} />
       </div>
 

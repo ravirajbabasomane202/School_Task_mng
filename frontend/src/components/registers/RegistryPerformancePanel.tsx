@@ -248,11 +248,11 @@ function RegistryPerformancePanel() {
       {/* Overall performance summary: changed vs not changed vs overall rate */}
       <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
         <div className="rounded-[20px] border border-[#EFF2F6] bg-white p-5">
-          <p className="text-xs font-medium text-[#8A99B0]">Changed (Completed)</p>
+          <p className="text-xs font-medium text-[#8A99B0]">checked (Completed)</p>
           <p className="mt-1 text-2xl font-semibold text-emerald-600">{overall.totalCompleted}</p>
         </div>
         <div className="rounded-[20px] border border-[#EFF2F6] bg-white p-5">
-          <p className="text-xs font-medium text-[#8A99B0]">Not Changed (Missed)</p>
+          <p className="text-xs font-medium text-[#8A99B0]">Not checked (Missed)</p>
           <p className="mt-1 text-2xl font-semibold text-amber-600">{overall.totalMissed}</p>
         </div>
         <div className="rounded-[20px] border border-[#EFF2F6] bg-white p-5">
