@@ -1,4 +1,4 @@
-export type RegisterCycle = 'DAILY' | 'WEEKLY' | 'MONTHLY' | 'QUARTERLY' | 'HALF_YEARLY' | 'YEARLY';
+export type RegisterCycle = 'DAILY' | 'WEEKLY' | '15_DAYS' | 'MONTHLY' | 'QUARTERLY' | 'HALF_YEARLY' | 'YEARLY';
 export type RegisterPriority = 'HIGH' | 'MEDIUM' | 'LOW';
 export type RegisterStatus = 'IDLE' | 'OK' | 'REJECTED';
 
@@ -18,6 +18,7 @@ export const STATUS_DOT_COLOR: Record<RegisterComputedStatus, RegisterDotColor> 
 export const REGISTER_CYCLES: { value: RegisterCycle; label: string }[] = [
   { value: 'DAILY', label: 'Daily' },
   { value: 'WEEKLY', label: 'Weekly' },
+  { value: '15_DAYS', label: '15 Days' },
   { value: 'MONTHLY', label: 'Monthly' },
   { value: 'QUARTERLY', label: 'Quarterly' },
   { value: 'HALF_YEARLY', label: 'Half-Yearly' },

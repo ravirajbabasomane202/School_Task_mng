@@ -3,7 +3,7 @@ from datetime import datetime, timezone, date, timedelta
 
 from app.extensions import db
 
-CYCLES = ['DAILY', 'WEEKLY', 'MONTHLY', 'QUARTERLY', 'HALF_YEARLY', 'YEARLY']
+CYCLES = ['DAILY', 'WEEKLY', '15_DAYS', 'MONTHLY', 'QUARTERLY', 'HALF_YEARLY', 'YEARLY']
 PRIORITIES = ['HIGH', 'MEDIUM', 'LOW']
 STATUSES = ['IDLE', 'OK', 'REJECTED']
 
@@ -27,6 +27,8 @@ def calculate_next_due_date(from_date, cycle: str):
         return from_date + timedelta(days=1)
     if cycle == 'WEEKLY':
         return from_date + timedelta(days=7)
+    if cycle == '15_DAYS':
+        return from_date + timedelta(days=15)
     if cycle == 'MONTHLY':
         return _add_months(from_date, 1)
     if cycle == 'QUARTERLY':

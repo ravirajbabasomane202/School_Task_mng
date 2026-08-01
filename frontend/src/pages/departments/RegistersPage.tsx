@@ -22,6 +22,7 @@ const PRIORITY_BADGE: Record<RegisterPriority, 'red' | 'amber' | 'blue'> = {
 const CYCLE_LABEL: Record<RegisterCycle, string> = {
   DAILY: 'Daily',
   WEEKLY: 'Weekly',
+  '15_DAYS': '15 Days',
   MONTHLY: 'Monthly',
   QUARTERLY: 'Quarterly',
   HALF_YEARLY: 'Half-Yearly',

@@ -18,6 +18,7 @@ const STATUS_BADGE: Record<Register['status'], 'gray' | 'green' | 'red'> = {
 const CYCLE_LABEL: Record<Register['checking_cycle'], string> = {
   DAILY: 'Daily',
   WEEKLY: 'Weekly',
+  '15_DAYS': '15 Days',
   MONTHLY: 'Monthly',
   QUARTERLY: 'Quarterly',
   HALF_YEARLY: 'Half-Yearly',

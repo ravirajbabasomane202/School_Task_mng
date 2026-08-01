@@ -11,13 +11,14 @@ import type { Register, RegisterCycle, RegisterDotColor } from '../../types/regi
 const CYCLE_LABEL: Record<RegisterCycle, string> = {
   DAILY: 'Daily',
   WEEKLY: 'Weekly',
+  '15_DAYS': '15 Days',
   MONTHLY: 'Monthly',
   QUARTERLY: 'Quarterly',
   HALF_YEARLY: 'Half-Yearly',
   YEARLY: 'Yearly',
 };
 
-const CYCLE_ORDER: RegisterCycle[] = ['DAILY', 'WEEKLY', 'MONTHLY', 'QUARTERLY', 'HALF_YEARLY', 'YEARLY'];
+const CYCLE_ORDER: RegisterCycle[] = ['DAILY', 'WEEKLY', '15_DAYS', 'MONTHLY', 'QUARTERLY', 'HALF_YEARLY', 'YEARLY'];
 
 const DOT_CLASS: Record<RegisterDotColor, string> = {
   green: 'bg-[#22C55E]',

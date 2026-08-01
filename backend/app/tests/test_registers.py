@@ -100,6 +100,15 @@ class TestCreateRegister:
         expected_due = (date.today() + timedelta(days=1)).isoformat()
         assert body['data']['next_due_date'] == expected_due
 
+    def test_creates_register_with_fifteen_day_cycle(self, client, auth_headers):
+        resp = client.post('/api/registers', json=_payload(cycle='15_DAYS'), headers=auth_headers['chairman'])
+        assert resp.status_code == 201
+        body = resp.get_json()
+        assert body['success'] is True
+        assert body['data']['cycle'] == '15_DAYS'
+        expected_due = (date.today() + timedelta(days=15)).isoformat()
+        assert body['data']['next_due_date'] == expected_due
+
     def test_duplicate_register_no_rejected(self, client, auth_headers):
         payload = _payload()
         client.post('/api/registers', json=payload, headers=auth_headers['chairman'])
