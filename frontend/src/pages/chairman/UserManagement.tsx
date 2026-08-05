@@ -1,10 +1,13 @@
-import React, { useState } from 'react';
+import React, { useMemo, useState } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { toast } from 'react-hot-toast';
 import UserTable from '../../components/tables/UserTable';
 import Button from '../../components/common/Button';
 import Modal from '../../components/common/Modal';
+import SelectWithOther from '../../components/common/SelectWithOther';
 import { ROLE_LABELS, TASK_ASSIGNABLE_ROLES } from '../../constants/roles';
+import { createDepartment, getAllDepartments } from '../../services/departmentService';
+import { createRole, getAllRoles } from '../../services/roleService';
 import api from '../../services/api';
 import type { User } from '../../types/user.types';
 
@@ -22,11 +25,6 @@ interface EditUserForm {
   role: string;
   department_id: number | null;
   password?: string;
-}
-
-interface Department {
-  id: number;
-  name: string;
 }
 
 interface ApiResponse<T> {
@@ -67,11 +65,41 @@ const UserManagement: React.FC = () => {
 
   const { data: departments } = useQuery({
     queryKey: ['departments'],
-    queryFn: async () => {
-      const response = await api.get<Department[]>('/departments');
-      return response.data;
-    }
+    queryFn: getAllDepartments
   });
+
+  const { data: customRoles } = useQuery({
+    queryKey: ['roles'],
+    queryFn: getAllRoles
+  });
+
+  // Built-in roles (drive permissions/routing) plus any custom roles added
+  // via the "Other" option, deduplicated by value.
+  const roleOptions = useMemo(() => {
+    const builtInNames = new Set<string>(TASK_ASSIGNABLE_ROLES);
+    const builtIn = TASK_ASSIGNABLE_ROLES.map((role) => ({ label: ROLE_LABELS[role], value: role }));
+    const custom = (customRoles ?? [])
+      .filter((role) => !builtInNames.has(role.name))
+      .map((role) => ({ label: role.name, value: role.name }));
+    return [...builtIn, ...custom];
+  }, [customRoles]);
+
+  const departmentOptions = useMemo(
+    () => (departments ?? []).map((department) => ({ label: department.name, value: String(department.id) })),
+    [departments]
+  );
+
+  const handleCreateRole = async (name: string) => {
+    const role = await createRole(name);
+    void queryClient.invalidateQueries({ queryKey: ['roles'] });
+    return { label: role.name, value: role.name };
+  };
+
+  const handleCreateDepartment = async (name: string) => {
+    const department = await createDepartment(name);
+    void queryClient.invalidateQueries({ queryKey: ['departments'] });
+    return { label: department.name, value: String(department.id) };
+  };
 
   const addUserMutation = useMutation({
     mutationFn: async (userData: AddUserForm) => {
@@ -217,42 +245,33 @@ const UserManagement: React.FC = () => {
           </div>
           <div>
             <label className="block text-sm font-medium text-gray-700">Role</label>
-            <select
+            <SelectWithOther
+              error={addErrors.role}
+              inputPlaceholder="Enter new role"
+              label="Role"
+              onChange={(value) => setAddForm({ ...addForm, role: value })}
+              onCreate={handleCreateRole}
+              options={roleOptions}
+              saveLabel="Save Role"
+              selectPlaceholder="Select Role"
               value={addForm.role}
-              onChange={(event) => setAddForm({ ...addForm, role: event.target.value })}
-              className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500"
-            >
-              <option value="">Select Role</option>
-              {TASK_ASSIGNABLE_ROLES.map((role) => (
-                <option key={role} value={role}>
-                  {ROLE_LABELS[role]}
-                </option>
-              ))}
-            </select>
-            {addErrors.role && <p className="mt-1 text-sm text-red-600">{addErrors.role}</p>}
+            />
           </div>
           <div>
             <label className="block text-sm font-medium text-gray-700">Department</label>
-            <select
-              value={addForm.department_id || ''}
-              onChange={(event) =>
-                setAddForm({
-                  ...addForm,
-                  department_id: Number.parseInt(event.target.value, 10) || null
-                })
+            <SelectWithOther
+              error={addErrors.department_id}
+              inputPlaceholder="Enter Department"
+              label="Department"
+              onChange={(value) =>
+                setAddForm({ ...addForm, department_id: value ? Number.parseInt(value, 10) : null })
               }
-              className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500"
-            >
-              <option value="">Select Department</option>
-              {departments?.map((department) => (
-                <option key={department.id} value={department.id}>
-                  {department.name}
-                </option>
-              ))}
-            </select>
-            {addErrors.department_id && (
-              <p className="mt-1 text-sm text-red-600">{addErrors.department_id}</p>
-            )}
+              onCreate={handleCreateDepartment}
+              options={departmentOptions}
+              saveLabel="Save Department"
+              selectPlaceholder="Select Department"
+              value={addForm.department_id ? String(addForm.department_id) : ''}
+            />
           </div>
           <div>
             <label className="block text-sm font-medium text-gray-700">Temporary Password</label>
@@ -307,42 +326,33 @@ const UserManagement: React.FC = () => {
           </div>
           <div>
             <label className="block text-sm font-medium text-gray-700">Role</label>
-            <select
+            <SelectWithOther
+              error={editErrors.role}
+              inputPlaceholder="Enter new role"
+              label="Role"
+              onChange={(value) => setEditForm({ ...editForm, role: value })}
+              onCreate={handleCreateRole}
+              options={roleOptions}
+              saveLabel="Save Role"
+              selectPlaceholder="Select Role"
               value={editForm.role}
-              onChange={(event) => setEditForm({ ...editForm, role: event.target.value })}
-              className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500"
-            >
-              <option value="">Select Role</option>
-              {TASK_ASSIGNABLE_ROLES.map((role) => (
-                <option key={role} value={role}>
-                  {ROLE_LABELS[role]}
-                </option>
-              ))}
-            </select>
-            {editErrors.role && <p className="mt-1 text-sm text-red-600">{editErrors.role}</p>}
+            />
           </div>
           <div>
             <label className="block text-sm font-medium text-gray-700">Department</label>
-            <select
-              value={editForm.department_id || ''}
-              onChange={(event) =>
-                setEditForm({
-                  ...editForm,
-                  department_id: Number.parseInt(event.target.value, 10) || null
-                })
+            <SelectWithOther
+              error={editErrors.department_id}
+              inputPlaceholder="Enter Department"
+              label="Department"
+              onChange={(value) =>
+                setEditForm({ ...editForm, department_id: value ? Number.parseInt(value, 10) : null })
               }
-              className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500"
-            >
-              <option value="">Select Department</option>
-              {departments?.map((department) => (
-                <option key={department.id} value={department.id}>
-                  {department.name}
-                </option>
-              ))}
-            </select>
-            {editErrors.department_id && (
-              <p className="mt-1 text-sm text-red-600">{editErrors.department_id}</p>
-            )}
+              onCreate={handleCreateDepartment}
+              options={departmentOptions}
+              saveLabel="Save Department"
+              selectPlaceholder="Select Department"
+              value={editForm.department_id ? String(editForm.department_id) : ''}
+            />
           </div>
           <div>
             <label className="block text-sm font-medium text-gray-700">

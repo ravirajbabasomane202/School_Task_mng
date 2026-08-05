@@ -1,5 +1,5 @@
 import type { User } from '../../types/user.types';
-import { ROLE_LABELS } from '../../constants/roles';
+import { getRoleLabel } from '../../utils/roleUtils';
 import Badge from '../common/Badge';
 import Button from '../common/Button';
 
@@ -53,7 +53,7 @@ function UserTable({ onDeactivate, onEdit, users }: UserTableProps) {
                     <span className="text-sm font-medium text-[#1E293B]">{user.name}</span>
                   </div>
                 </td>
-                <td className="px-4 py-3.5 text-sm text-[#36506C]">{ROLE_LABELS[user.role]}</td>
+                <td className="px-4 py-3.5 text-sm text-[#36506C]">{getRoleLabel(user.role)}</td>
                 <td className="px-4 py-3.5 text-sm text-[#36506C]">
                   {user.departmentName ?? user.department?.name ?? '--'}
                 </td>

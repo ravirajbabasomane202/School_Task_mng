@@ -127,7 +127,7 @@ function DirectorDashboard() {
   return (
     <div className="flex min-h-screen bg-[#F1F4F9] text-[#1E293B]">
       <Sidebar />
-      <main className="min-w-0 flex-1">
+      <main className="custom-scrollbar ml-[196px] h-screen min-w-0 flex-1 overflow-y-auto">
         <Navbar />
 <Routes>
            <Route index element={<DirectorOverview />} />

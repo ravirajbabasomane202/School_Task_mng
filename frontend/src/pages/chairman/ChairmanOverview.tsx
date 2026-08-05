@@ -8,6 +8,7 @@ import Button from '../../components/common/Button';
 import DepartmentHealthBar from '../../components/charts/DepartmentHealthBar';
 import TaskTable from '../../components/tables/TaskTable';
 import { ROLE_LABELS, TASK_ASSIGNABLE_ROLES } from '../../constants/roles';
+import { getRoleLabel } from '../../utils/roleUtils';
 import { approveApproval, rejectApproval } from '../../services/approvalService';
 import api from '../../services/api';
 import { getStaffPerformance } from '../../services/dashboardService';
@@ -278,7 +279,7 @@ function ChairmanOverview() {
                 key={user.userId}
               >
                 <div>
-                  <p className="text-sm font-semibold text-[#1E293B]">{ROLE_LABELS[user.role]}</p>
+                  <p className="text-sm font-semibold text-[#1E293B]">{getRoleLabel(user.role)}</p>
                   <p className="text-sm text-[#5B6E8C]">{user.name}</p>
                 </div>
                 <div className="text-sm text-[#36506C]">
@@ -317,7 +318,7 @@ function ChairmanOverview() {
               >
                 <div>
                   <p className="text-sm font-semibold text-[#1E293B]">{user.name}</p>
-                  <p className="text-sm text-[#5B6E8C]">{ROLE_LABELS[user.role]}</p>
+                  <p className="text-sm text-[#5B6E8C]">{getRoleLabel(user.role)}</p>
                 </div>
                 <div className="text-right">
                   <p className="text-sm font-semibold text-[#1E293B]">{user.performanceScore}%</p>

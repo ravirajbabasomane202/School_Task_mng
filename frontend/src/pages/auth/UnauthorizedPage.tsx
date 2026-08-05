@@ -1,6 +1,7 @@
 import { useNavigate } from 'react-router-dom';
 import { useAppSelector } from '../../store/hooks';
 import { ROLE_LABELS } from '../../constants/roles';
+import { getRoleLabel } from '../../utils/roleUtils';
 
 export default function UnauthorizedPage() {
   const navigate = useNavigate();
@@ -25,7 +26,7 @@ export default function UnauthorizedPage() {
         </p>
         {user && (
           <p className="mb-6 text-xs text-[#8A99B0]">
-            Signed in as <span className="font-medium">{ROLE_LABELS[user.role]}</span>
+            Signed in as <span className="font-medium">{getRoleLabel(user.role)}</span>
           </p>
         )}
         <button

@@ -4,6 +4,7 @@ import { useQuery } from '@tanstack/react-query';
 import PerformanceChart from '../../components/charts/PerformanceChart';
 import RegistryPerformancePanel from '../../components/registers/RegistryPerformancePanel';
 import { ROLE_LABELS } from '../../constants/roles';
+import { getRoleLabel } from '../../utils/roleUtils';
 import { getMonthlyComparison, getStaffPerformance } from '../../services/dashboardService';
 
 interface PerformanceData {
@@ -123,7 +124,7 @@ function PerformanceAnalytics() {
             {topPerformer?.name || 'N/A'}
           </p>
           <p className="mt-2 text-sm text-[#8A99B0]">
-            {topPerformer ? ROLE_LABELS[topPerformer.role] : 'No task data yet'}
+            {topPerformer ? getRoleLabel(topPerformer.role) : 'No task data yet'}
           </p>
         </div>
 
@@ -193,7 +194,7 @@ function PerformanceAnalytics() {
                   }`}
                 >
                   <td className="px-4 py-3 text-[#1E293B]">{user.name}</td>
-                  <td className="px-4 py-3 text-[#5B6E8C]">{ROLE_LABELS[user.role]}</td>
+                  <td className="px-4 py-3 text-[#5B6E8C]">{getRoleLabel(user.role)}</td>
                   <td className="px-4 py-3 text-[#1E293B]">{user.totalTasks}</td>
                   <td className="px-4 py-3 text-[#1E293B]">{user.completedTasks}</td>
                   <td className="px-4 py-3 text-[#1E293B]">{user.delayedTasks}</td>

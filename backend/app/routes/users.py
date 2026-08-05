@@ -2,10 +2,22 @@ from flask import Blueprint, request, jsonify
 from flask_jwt_extended import jwt_required, get_jwt_identity
 from app.extensions import db
 from app.models.user import User, ROLES
+from app.models.role import Role
 from app.utils.response import success, error
 from app.utils.decorators import roles_required
 
 users_bp = Blueprint('users', __name__)
+
+
+def is_valid_role(name):
+    """A role is valid if it's one of the built-in ROLES (which drive
+    permissions/routing) or a custom role added via the roles catalog
+    (the "Other" option on the Add/Edit User forms)."""
+    if not name:
+        return False
+    if name in ROLES:
+        return True
+    return Role.query.filter(db.func.lower(Role.name) == name.lower()).first() is not None
 
 
 @users_bp.route('', methods=['GET'])
@@ -47,8 +59,8 @@ def create_user():
         if not data.get(field):
             return error(f'{field} is required', 400)
 
-    if data['role'] not in ROLES:
-        return error(f"Invalid role. Must be one of: {', '.join(ROLES)}", 400)
+    if not is_valid_role(data['role']):
+        return error('Invalid role', 400)
 
     if User.query.filter_by(email=data['email'].lower().strip()).first():
         return error('Email already registered', 409)
@@ -88,7 +100,7 @@ def update_user(user_id):
             return error('Email already in use', 409)
         user.email = data['email'].lower().strip()
     if 'role' in data:
-        if data['role'] not in ROLES:
+        if not is_valid_role(data['role']):
             return error('Invalid role', 400)
         if data['role'] == 'CHAIRMAN':
             return error('Cannot assign CHAIRMAN role via this endpoint', 403)

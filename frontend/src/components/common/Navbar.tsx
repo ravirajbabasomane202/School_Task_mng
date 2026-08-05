@@ -1,7 +1,7 @@
 import type { ReactNode } from 'react';
 import { useState } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
-import { ROLE_LABELS } from '../../constants/roles';
+import { getRoleLabel } from '../../utils/roleUtils';
 import { useAuth } from '../../hooks/useAuth';
 import { useAppSelector } from '../../store/hooks';
 import Badge from './Badge';
@@ -75,7 +75,7 @@ function Navbar({ actions, title }: NavbarProps) {
     'Dashboard';
   const subtitleParts = [
     formatNavbarDate(),
-    user?.departmentName ?? (user ? ROLE_LABELS[user.role] : 'All Departments')
+    user?.departmentName ?? (user ? getRoleLabel(user.role) : 'All Departments')
   ];
 
   const handleLogout = async () => {

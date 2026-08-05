@@ -23,11 +23,15 @@ def list_departments():
 @roles_required('CHAIRMAN')
 def create_department():
     data = request.get_json()
-    if not data or not data.get('name'):
+    name = (data or {}).get('name', '')
+    name = name.strip() if isinstance(name, str) else ''
+    if not name:
         return error('Name is required', 400)
-    if Department.query.filter_by(name=data['name']).first():
+    if len(name) > 100:
+        return error('Department name must be 100 characters or fewer', 400)
+    if Department.query.filter(db.func.lower(Department.name) == name.lower()).first():
         return error('Department already exists', 409)
-    dept = Department(name=data['name'].strip(), description=data.get('description'))
+    dept = Department(name=name, description=data.get('description'))
     db.session.add(dept)
     db.session.commit()
     return success(dept.to_dict(), 'Department created', 201)

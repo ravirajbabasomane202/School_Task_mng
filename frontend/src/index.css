@@ -38,3 +38,37 @@ body {
     transform: translateY(0);
   }
 }
+
+/* Modern custom scrollbar: thin, rounded thumb, theme-matched, no horizontal
+   scrollbar. Applied to the sidebar menu and the main scrollable content
+   area. Works in Chrome/Edge (::-webkit-scrollbar) and Firefox
+   (scrollbar-width/scrollbar-color). */
+.custom-scrollbar {
+  overflow-x: hidden;
+  overflow-y: auto;
+  scroll-behavior: smooth;
+  scrollbar-width: thin;
+  scrollbar-color: #C7D3E3 transparent;
+}
+
+.custom-scrollbar::-webkit-scrollbar {
+  width: 6px;
+  height: 0;
+}
+
+.custom-scrollbar::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+.custom-scrollbar::-webkit-scrollbar-thumb {
+  background-color: #C7D3E3;
+  border-radius: 9999px;
+}
+
+.custom-scrollbar::-webkit-scrollbar-thumb:hover {
+  background-color: #A9BAD1;
+}
+
+.custom-scrollbar::-webkit-scrollbar-corner {
+  background: transparent;
+}

@@ -1,6 +1,7 @@
 import { useQuery } from '@tanstack/react-query';
 import { NavLink } from 'react-router-dom';
-import { DEPARTMENT_HEAD_ROLES, ROLE_LABELS, ROLES } from '../../constants/roles';
+import { DEPARTMENT_HEAD_ROLES, ROLES } from '../../constants/roles';
+import { getRoleLabel } from '../../utils/roleUtils';
 import { getAllApprovals } from '../../services/approvalService';
 import { useAppSelector } from '../../store/hooks';
 import Badge from './Badge';
@@ -124,8 +125,8 @@ function Sidebar() {
   });
 
   return (
-    <aside className="flex min-h-screen w-[196px] shrink-0 flex-col border-r-[0.5px] border-[#EFF2F6] bg-[#F8F9FC]">
-      <div className="border-b border-b-[0.5px] border-[#EFF2F6] px-4 py-4">
+    <aside className="fixed inset-y-0 left-0 z-20 flex h-screen w-[196px] shrink-0 flex-col overflow-hidden border-r-[0.5px] border-[#EFF2F6] bg-[#F8F9FC]">
+      <div className="shrink-0 border-b border-b-[0.5px] border-[#EFF2F6] px-4 py-4">
         <div className="flex items-center gap-3">
           <div className="flex h-[30px] w-[30px] items-center justify-center rounded-[10px] bg-[#185FA5] text-xs font-semibold text-white">
             ET
@@ -133,13 +134,13 @@ function Sidebar() {
           <div className="min-w-0">
             <p className="truncate text-[14px] font-semibold text-[#1E293B]">EduTask Pro</p>
             <p className="truncate text-[11px] text-[#8A99B0]">
-              {user ? ROLE_LABELS[user.role] : 'Master access'}
+              {user ? getRoleLabel(user.role) : 'Master access'}
             </p>
           </div>
         </div>
       </div>
 
-      <nav className="flex-1 overflow-y-auto px-3 py-4">
+      <nav className="custom-scrollbar min-h-0 flex-1 px-3 py-4">
         {groups.map((group) => {
           const groupItems = decoratedItems.filter((item) => item.group === group);
           if (groupItems.length === 0) return null;
@@ -182,7 +183,7 @@ function Sidebar() {
         })}
       </nav>
 
-      <div className="border-t border-t-[0.5px] border-[#EFF2F6] px-4 py-3">
+      <div className="shrink-0 border-t border-t-[0.5px] border-[#EFF2F6] px-4 py-3">
         <div className="flex items-center gap-2.5">
           <div className="flex h-7 w-7 items-center justify-center rounded-full bg-[#E6F1FB] text-[11px] font-semibold text-[#0C447C]">
             {getInitials(user?.name)}
@@ -190,7 +191,7 @@ function Sidebar() {
           <div className="min-w-0">
             <p className="truncate text-[12px] font-medium text-[#1E293B]">{user?.name ?? 'User'}</p>
             <p className="truncate text-[11px] text-[#8A99B0]">
-              {user ? ROLE_LABELS[user.role] : 'Master access'}
+              {user ? getRoleLabel(user.role) : 'Master access'}
             </p>
           </div>
         </div>

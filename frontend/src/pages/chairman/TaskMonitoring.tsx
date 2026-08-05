@@ -6,6 +6,7 @@ import toast from 'react-hot-toast';
 import Button from '../../components/common/Button';
 import TaskTable from '../../components/tables/TaskTable';
 import { ROLE_LABELS, ROLES } from '../../constants/roles';
+import { getRoleLabel } from '../../utils/roleUtils';
 import api from '../../services/api';
 import * as reportService from '../../services/reportService';
 import * as taskService from '../../services/taskService';
@@ -322,7 +323,7 @@ function TaskMonitoring() {
               <option value="all">All people</option>
               {assignableUsers.map((user) => (
                 <option key={user.id} value={user.id}>
-                  {user.name} - {ROLE_LABELS[user.role]}
+                  {user.name} - {getRoleLabel(user.role)}
                 </option>
               ))}
             </select>

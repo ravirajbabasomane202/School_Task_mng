@@ -1,4 +1,5 @@
 from app.models.department import Department
+from app.models.role import Role
 from app.models.user import User
 from app.models.task import Task, TaskHistory
 from app.models.notification import Notification, Announcement
@@ -16,7 +17,7 @@ from app.models.login_attempt import LoginAttempt
 from app.models.register import Register, RegisterOccurrence
 
 __all__ = [
-    'Department', 'User', 'Task', 'TaskHistory',
+    'Department', 'Role', 'User', 'Task', 'TaskHistory',
     'Notification', 'Announcement', 'Approval',
     'ReportHistory', 'RefreshToken',
     'Meeting', 'MeetingAttendee', 'HousekeepingTask',
