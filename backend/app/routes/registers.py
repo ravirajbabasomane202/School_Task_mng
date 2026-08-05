@@ -5,7 +5,7 @@ from flask_jwt_extended import jwt_required, get_jwt_identity
 
 from app.extensions import db
 from app.models.register import Register, RegisterOccurrence, CYCLES, PRIORITIES, STATUSES, calculate_next_due_date, _add_months
-from app.models.user import User, DEPARTMENT_HEAD_ROLES
+from app.models.user import User
 from app.utils.response import success, error
 from app.utils.decorators import roles_required
 
@@ -437,10 +437,9 @@ def update_occurrence_status(register_id: int, occurrence_date: str):
 @registers_bp.route('/heads', methods=['GET'])
 @jwt_required()
 def list_register_heads():
-    """Active users eligible to be selected as a Register's Head Name."""
+    """All active users eligible to be selected as a Register's Head Name."""
     query = User.query.filter(
         User.is_active.is_(True),
-        User.role.in_(DEPARTMENT_HEAD_ROLES),
     )
     users = query.order_by(User.name).all()
     return success([

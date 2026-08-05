@@ -1,0 +1,230 @@
+    1  python --version
+    2  clweare
+    3  clear
+    4  python --version
+    5  node --version
+    6  npm --version
+    7  psql --version
+    8  sudo apt update
+    9  sudo apt upgrade -y
+   10  sudo apt install -y git curl wget build-essential unzip software-properties-common
+   11  sudo apt install -y python3 python3-pip python3-venv python-is-python3
+   12  python --version
+   13  pip --version
+   14  curl -fsSL https://deb.nodesource.com/setup_lts.x | sudo -E bash -
+   15  sudo apt install -y nodejs
+   16  node --version
+   17  npm --version
+   18  sudo apt install -y postgresql postgresql-contrib
+   19  sudo systemctl enable postgresql
+   20  sudo systemctl start postgresql
+   21  psql --version
+   22  psql -U postgres
+   23  CREATE DATABASE taskmanager;
+   24  \q
+   25  sudo -i -u postgres
+   26  ls
+   27  git
+   28  clear
+   29  git clone "https://github.com/ravirajbabasomane202/School_Task_mng.git"
+   30  clear
+   31  git clone "https://github.com/ravirajbabasomane202/School_Task_mng.git"
+   32  clear
+   33  git clone "https://github.com/ravirajbabasomane202/School_Task_mng.git"
+   34  ls
+   35  cd School_Task_mng/
+   36  clear
+   37  ls
+   38  cd backend/
+   39  clear
+   40  ls
+   41  pip install -r requirements.txt
+   42  clear
+   43  python3 -m venv .venv
+   44  source .venv/bin/activate
+   45  pip install --upgrade pip
+   46  pip install -r requirements.txt
+   47  $env:FLASK_APP = "run.py"
+   48  python -m flask db upgrade
+   49  python -m flask seed
+   50  python run.py
+   51  clear
+   52  export FLASK_APP=run.py
+   53  FLASK_APP=run.py flask db upgrade
+   54  pwd
+   55  ls -la
+   56  find .. -maxdepth 2 -type d -name migrations
+   57  git status
+   58  git ls-files | grep migrations
+   59  clear
+   60  cd ~/School_Task_mng
+   61  git status
+   62  git pull origin main
+   63  clear
+   64  ls
+   65  cd backend/
+   66  ls
+   67  clear
+   68  FLASK_APP=run.py flask db upgrade
+   69  clear
+   70  ls
+   71  git pull origin main
+   72  FLASK_APP=run.py flask db upgrade
+   73  sudo -i -u postgres
+   74  psql
+   75  FLASK_APP=run.py flask db upgrade
+   76  flask db heads
+   77  FLASK_APP=run.py flask db history
+   78  clear
+   79  FLASK_APP=run.py flask db upgrade
+   80  flask db heads
+   81  FLASK_APP=run.py flask db history
+   82  FLASK_APP=run.py flask db upgrade heads
+   83  clear
+   84  python -m flask seed
+   85  python run.py
+   86  cd .
+   87  cd ..
+   88  cd frontend
+   89  npm install
+   90  npm run dev
+   91  npm list lucide-react
+   92  clear
+   93  npm run dev
+   94  clear
+   95  node -v
+   96  npm -v
+   97  npm list lucide-react
+   98  grep "lucide-react" package.json
+   99  ls -la node_modules/lucide-react
+  100  cat node_modules/lucide-react/package.json
+  101  npm install lucide-react
+  102  npm run dev
+  103  clear
+  104  ls node_modules/lucide-react/dist
+  105  npx vite --debug
+  106  rm -rf node_modules/lucide-react
+  107  rm -f package-lock.json yarn.lock pnpm-lock.yaml   
+  108  npm install lucide-react
+  109  rm -rf node_modules/.vite
+  110  npm run dev
+  111  clear
+  112  exit
+  113  cd backend/
+  114  python run.py 
+  115  source .venv/bin/activate
+  116  python run.py 
+  117  cd ~/School_Task_mng/backend
+  118  source .venv/bin/activate
+  119  python run.py
+  120  clear
+  121  exit
+  122  sudo apt update
+  123  sudo apt install tmux
+  124  tmux new -s backend
+  125  clear
+  126  cd ~/School_Task_mng/backend
+  127  source .venv/bin/activate
+  128  python run.py
+  129  cd frontend/
+  130  npm run dev
+  131  ls node_modules/@babel/core/lib/transformation/
+  132  rm -rf node_modules
+  133  rm -f package-lock.json
+  134  npm cache clean --force
+  135  clear
+  136  npm install
+  137  npm run dev
+  138  vlear
+  139  clear
+  140  npm run dev
+  141  claer
+  142  git pull origin main
+  143  git reset --hard origin/main
+  144  git clean -fdn
+  145  timedatectl
+  146  clear
+  147  # 1. Get a brand-new token (don't reuse the old pasted one — it's likely expired by now, access tokens only last 15 min)
+  148  curl -s -X POST https://moses-locator-copyrights-senate.trycloudflare.com/api/auth/login   -H "Content-Type: application/json"   -d '{"email":"chairman@school.com","password":"YOUR_PASSWORD"}' | python3 -m json.tool
+  149  source .venv/bin/activate
+  150  cd backend/
+  151  source .venv/bin/activate
+  152  tmux attach -t backend
+  153  tmux ls
+  154  clear
+  155  tmux ls
+  156  clear
+  157  tmux attach -t backend
+  158  tmux attach -t tunnel
+  159  tmux ls
+  160  ps aux | grep run.py
+  161  tmux attach -t tunnel
+  162  tmux new -s tunnel
+  163  wget https://github.com/cloudflare/cloudflared/releases/latest/download/cloudflared-linux-amd64.deb
+  164  sudo dpkg -i cloudflared-linux-amd64.deb
+  165  cloudflared --version
+  166  tmux new -s tunnel
+  167  tmux attach -t frontend
+  168  tmux attach -t backend
+  169  tmux attach -t frontend
+  170  tmux attach -t backend
+  171  tmux attach -t frontend
+  172  tmux attach -t backend
+  173  tmux attach -t frontend
+  174  cd ~/School_Task_mng/frontend
+  175  tmux attach -t frontend
+  176  tmux new -s backend
+  177  tmux new -s frontend
+  178  cloudflared tunnel --url http://localhost:5173
+  179  clear
+  180  cloudflared tunnel --url http://localhost:5173
+  181  cd frontend/
+  182  tmux attach -t frontend
+  183  tmux attach -t tunnel
+  184  git config --global user.name "ravirajbabasomane202"
+  185  git config --global user.email "ravirajbabasomane@gmail.com"
+  186  cd ..
+  187  clae
+  188  cleae
+  189  cls
+  190  clear
+  191  git fetch origin
+  192  git pull origin main
+  193  cd backend/
+  194  tmux attach -t backend
+  195  tmux attach -t frontend
+  196  clear
+  197  cd ..
+  198  cd..
+  199  cd ..
+  200  clear
+  201  mkdir Certification
+  202  cd Certification/
+  203  clear
+  204  neno app.py
+  205  cat app.py
+  206  clear
+  207  cat >> app.py
+  208  cat app.py
+  209  clear
+  210  mkdir certificates
+  211  clear
+  212  cd /home/raviraj/School_Task_mng/
+  213  clea
+  214  clear
+  215  ps aux | grep cloudflared
+  216  journalctl _PID=140066 | grep trycloudflare.com
+  217  sudo grep -i "trycloudflare.com" /var/log/syslog
+  218  tmux attach -t tunnel
+  219  tmux attach-session -t tunnel
+  220  tmux attach -t backend
+  221  tmux attach -t frontend
+  222  git remote -v
+  223  tmux attach -t backend
+  224  tmux attach -t frontend
+  225  tmux attach -t backend
+  226  git remote -v
+  227  tmux attach -t backend
+  228  clear
+  229  psql -U postgres -h localhost -p 5432 -d taskmanager
+  230  history > all_commands.txt
